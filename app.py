@@ -5919,7 +5919,7 @@ if page == "Dashboard":
                         y_label="Asset Count",
                         hover_context="Assets",
                         total_for_percent=total_brand_assets,
-                        height=350
+                        height=380
                     )
 
                     # Render chart with click events enabled
@@ -6042,7 +6042,7 @@ if page == "Dashboard":
                     )
 
                     fig_status.update_layout(
-                        height=350,
+                        height=380,
                         paper_bgcolor='#FFFFFF',
                         plot_bgcolor='#FFFFFF',
                         font=dict(family="Inter, -apple-system, sans-serif", size=12, color='#374151'),
