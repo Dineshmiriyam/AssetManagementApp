@@ -563,8 +563,7 @@ def create_analytics_bar_chart(
         y=y_data,
         marker=dict(
             color=bar_colors,
-            line=dict(width=0),
-            cornerradius=4
+            line=dict(width=0)
         ),
         hovertemplate=hover_template,
         customdata=customdata,
