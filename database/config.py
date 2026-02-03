@@ -70,4 +70,12 @@ else:
 
 # Data source toggle: "mysql" or "airtable"
 # Set this to switch between databases
-DATA_SOURCE = os.getenv("DATA_SOURCE", "airtable")
+DATA_SOURCE = os.getenv("DATA_SOURCE", "mysql")
+
+# Debug: Print config on startup (remove in production later)
+print(f"[CONFIG] Environment: {ENVIRONMENT}")
+print(f"[CONFIG] Data Source: {DATA_SOURCE}")
+print(f"[CONFIG] DB Host: {DB_CONFIG.get('host', 'NOT SET')}")
+print(f"[CONFIG] DB Name: {DB_CONFIG.get('database', 'NOT SET')}")
+print(f"[CONFIG] DB User: {DB_CONFIG.get('user', 'NOT SET')}")
+print(f"[CONFIG] DB Port: {DB_CONFIG.get('port', 'NOT SET')}")
