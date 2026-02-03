@@ -5925,7 +5925,8 @@ if page == "Dashboard":
                     # Render chart with click events enabled
                     st.plotly_chart(
                         fig_brand,
-                                                config={
+                        use_container_width=True,
+                        config={
                             'displayModeBar': False,
                             'scrollZoom': False
                         },
