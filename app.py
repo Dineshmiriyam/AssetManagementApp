@@ -4940,8 +4940,18 @@ if "current_page" not in st.session_state:
 if "user_role" not in st.session_state:
     st.session_state.user_role = "admin"  # Default role
 
-# Check API connection first
-api = get_airtable_api()
+# Check API/Database connection first
+if DATA_SOURCE == "mysql" and MYSQL_AVAILABLE:
+    # MySQL mode - check database connection
+    api = True  # Set to True so existing checks pass
+    try:
+        db_connected, db_msg = DatabaseConnection.test_connection()
+    except:
+        db_connected = False
+else:
+    # Airtable mode
+    api = get_airtable_api()
+    db_connected = api is not None
 
 # Sidebar brand header
 st.sidebar.markdown("""
@@ -4952,7 +4962,7 @@ st.sidebar.markdown("""
 """, unsafe_allow_html=True)
 
 # Connection status
-if api:
+if db_connected:
     st.sidebar.markdown("""
     <div class="connection-status status-connected">
         ● Connected
