@@ -842,7 +842,7 @@ def render_empty_state(state_key: str, custom_message: str = None, show_action: 
     if show_action and state["action"] and state["action_page"]:
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button(state['action'], key=f"empty_action_{state_key}", width='stretch'):
+            if st.button(state['action'], key=f"empty_action_{state_key}"):
                 st.session_state.current_page = state["action_page"]
                 safe_rerun()
 
@@ -1117,7 +1117,7 @@ def render_error_state(
     if show_retry and retry_key:
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
-            if st.button("Try Again", key=f"btn_{retry_key}", width='stretch'):
+            if st.button("Try Again", key=f"btn_{retry_key}"):
                 st.session_state[retry_key] = True
                 st.cache_data.clear()
                 safe_rerun()
@@ -4131,11 +4131,11 @@ def render_confirmation_dialog(role):
 
     with col1:
         confirm_label = "Confirm & Execute" if is_admin else "Confirm"
-        if st.button(confirm_label, key="confirm_action_btn", type="primary", width='stretch'):
+        if st.button(confirm_label, key="confirm_action_btn", type="primary"):
             return True, False
 
     with col2:
-        if st.button("Cancel", key="cancel_action_btn", width='stretch'):
+        if st.button("Cancel", key="cancel_action_btn"):
             clear_action_confirmation()
             return False, True
 
@@ -5013,8 +5013,7 @@ for group_name, items in visible_menu.items():
         if st.sidebar.button(
             f"{item['icon']}  {item['name']}",
             key=f"nav_{item['key']}_{current_role}",
-            width='stretch',
-            type="primary" if is_active else "secondary",
+                        type="primary" if is_active else "secondary",
             help="Recommended for your role" if is_primary_action and not is_active else None
         ):
             nav_clicked = item["name"]
@@ -5153,7 +5152,7 @@ if page == "Dashboard":
             </div>
             """, unsafe_allow_html=True)
         with update_col2:
-            if st.button("Refresh", key="refresh_data", width='stretch'):
+            if st.button("Refresh", key="refresh_data"):
                 clear_cache()
                 safe_rerun()
 
@@ -5688,7 +5687,7 @@ if page == "Dashboard":
         qa_col1, qa_col2, qa_col3, qa_col4 = st.columns(4)
 
         with qa_col1:
-            if st.button("Add Asset", key="qa_add_asset", width='stretch', disabled=not has_create_permission):
+            if st.button("Add Asset", key="qa_add_asset", disabled=not has_create_permission):
                 st.session_state.current_page = "Add Asset"
                 safe_rerun()
             if not has_create_permission:
@@ -5696,7 +5695,7 @@ if page == "Dashboard":
 
         with qa_col2:
             assign_disabled = not can_assign or not has_lifecycle_permission
-            if st.button("Assign to Client", key="qa_assign", width='stretch', disabled=assign_disabled):
+            if st.button("Assign to Client", key="qa_assign", disabled=assign_disabled):
                 st.session_state.current_page = "Quick Actions"
                 st.session_state.quick_action_tab = "ship"
                 safe_rerun()
@@ -5707,7 +5706,7 @@ if page == "Dashboard":
 
         with qa_col3:
             return_disabled = not can_return or not has_lifecycle_permission
-            if st.button("Receive Return", key="qa_return", width='stretch', disabled=return_disabled):
+            if st.button("Receive Return", key="qa_return", disabled=return_disabled):
                 st.session_state.current_page = "Quick Actions"
                 st.session_state.quick_action_tab = "return"
                 safe_rerun()
@@ -5718,7 +5717,7 @@ if page == "Dashboard":
 
         with qa_col4:
             repair_disabled = not can_send_repair or not has_repair_permission
-            if st.button("Send to Vendor", key="qa_repair", width='stretch', disabled=repair_disabled):
+            if st.button("Send to Vendor", key="qa_repair", disabled=repair_disabled):
                 st.session_state.current_page = "Quick Actions"
                 st.session_state.quick_action_tab = "repair"
                 safe_rerun()
@@ -5891,8 +5890,7 @@ if page == "Dashboard":
                     # Render chart with click events enabled
                     st.plotly_chart(
                         fig_brand,
-                        width='stretch',
-                        config={
+                                                config={
                             'displayModeBar': False,
                             'scrollZoom': False
                         },
@@ -6152,7 +6150,7 @@ if page == "Dashboard":
                 confirm_col1, confirm_col2, confirm_col3 = st.columns([1, 1, 2])
 
                 with confirm_col1:
-                    if st.button("Confirm", key="confirm_yes", type="primary", width='stretch'):
+                    if st.button("Confirm", key="confirm_yes", type="primary"):
                         if action["type"] == "fix":
                             success, error_msg = update_asset_status(action["record_id"], "IN_STOCK_WORKING", "Office")
                             if success:
@@ -6180,7 +6178,7 @@ if page == "Dashboard":
                                 st.error(f"Cannot update status: {error_msg}")
 
                 with confirm_col2:
-                    if st.button("Cancel", key="confirm_no", width='stretch'):
+                    if st.button("Cancel", key="confirm_no"):
                         st.session_state.confirm_action = None
                         safe_rerun()
 
@@ -6270,7 +6268,7 @@ if page == "Dashboard":
                             # Fix Software - only for RETURNED_FROM_CLIENT
                             with btn_col1:
                                 fix_disabled = status != "RETURNED_FROM_CLIENT"
-                                if st.button("Fix", key=f"fix_{serial}", disabled=fix_disabled, width='stretch'):
+                                if st.button("Fix", key=f"fix_{serial}", disabled=fix_disabled):
                                     st.session_state.confirm_action = {
                                         "type": "fix",
                                         "serial": serial,
@@ -6285,7 +6283,7 @@ if page == "Dashboard":
                             # Send to Vendor - only for RETURNED_FROM_CLIENT or IN_OFFICE_TESTING
                             with btn_col2:
                                 vendor_disabled = status not in ["RETURNED_FROM_CLIENT", "IN_OFFICE_TESTING"]
-                                if st.button("Vendor", key=f"vendor_{serial}", disabled=vendor_disabled, width='stretch'):
+                                if st.button("Vendor", key=f"vendor_{serial}", disabled=vendor_disabled):
                                     st.session_state.confirm_action = {
                                         "type": "vendor",
                                         "serial": serial,
@@ -6422,7 +6420,7 @@ elif page == "Assets":
                 return styles
 
             styled_df = paginated_df[available_cols].style.apply(highlight_status, axis=1)
-            st.dataframe(styled_df, width='stretch', hide_index=True)
+            st.dataframe(styled_df, hide_index=True)
 
         # Export actions
         st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
@@ -7146,7 +7144,7 @@ elif page == "Assignments":
                 """, unsafe_allow_html=True)
                 # Apply pagination
                 paginated_assignments = paginate_dataframe(assignments_df, "assignments_table", show_controls=True)
-                st.dataframe(paginated_assignments, width='stretch', hide_index=True)
+                st.dataframe(paginated_assignments, hide_index=True)
             else:
                 render_empty_state("no_assignments")
 
@@ -7179,12 +7177,11 @@ elif page == "Assignments":
 
                     st.plotly_chart(
                         fig,
-                        width='stretch',
-                        config={'displayModeBar': False},
+                                                config={'displayModeBar': False},
                         key="client_assets_bar_chart"
                     )
 
-                    st.dataframe(client_assets, width='stretch', hide_index=True)
+                    st.dataframe(client_assets, hide_index=True)
                 else:
                     render_empty_state("no_billable_assets", show_action=True)
 
@@ -7240,7 +7237,7 @@ elif page == "Issues & Repairs":
                 """, unsafe_allow_html=True)
                 # Apply pagination
                 paginated_issues = paginate_dataframe(filtered_issues, "issues_table", show_controls=True)
-                st.dataframe(paginated_issues[available_cols], width='stretch', hide_index=True)
+                st.dataframe(paginated_issues[available_cols], hide_index=True)
             else:
                 render_empty_state("no_issues", show_action=False)
 
@@ -7267,7 +7264,7 @@ elif page == "Issues & Repairs":
                 """, unsafe_allow_html=True)
                 # Apply pagination
                 paginated_repairs = paginate_dataframe(repairs_df, "repairs_table", show_controls=True)
-                st.dataframe(paginated_repairs[available_cols], width='stretch', hide_index=True)
+                st.dataframe(paginated_repairs[available_cols], hide_index=True)
             else:
                 render_empty_state("no_repairs", show_action=False)
 
@@ -7470,7 +7467,7 @@ elif page == "Reports":
                     if "Current Status" in assets_df.columns:
                         status_summary = assets_df["Current Status"].value_counts().reset_index()
                         status_summary.columns = ["Status", "Count"]
-                        st.dataframe(status_summary, width='stretch', hide_index=True)
+                        st.dataframe(status_summary, hide_index=True)
 
                 with col2:
                     # By brand and type
@@ -7482,7 +7479,7 @@ elif page == "Reports":
                     if "Brand" in assets_df.columns:
                         brand_summary = assets_df["Brand"].value_counts().reset_index()
                         brand_summary.columns = ["Brand", "Count"]
-                        st.dataframe(brand_summary, width='stretch', hide_index=True)
+                        st.dataframe(brand_summary, hide_index=True)
 
                 # Model breakdown
                 st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
@@ -7516,8 +7513,7 @@ elif page == "Reports":
 
                     st.plotly_chart(
                         fig,
-                        width='stretch',
-                        config={'displayModeBar': False},
+                                                config={'displayModeBar': False},
                         key="model_bar_chart"
                     )
 
@@ -7556,7 +7552,7 @@ elif page == "Reports":
                         })
 
                     billing_summary = pd.DataFrame(client_data)
-                    st.dataframe(billing_summary, width='stretch', hide_index=True)
+                    st.dataframe(billing_summary, hide_index=True)
 
                     # Summary metrics
                     metric_cols = st.columns(3)
@@ -7737,8 +7733,7 @@ elif page == "Billing":
 
                 st.dataframe(
                     billing_summary,
-                    width='stretch',
-                    hide_index=True,
+                                        hide_index=True,
                     column_config={
                         "Client": st.column_config.TextColumn("Client"),
                         "Asset Count": st.column_config.NumberColumn("Assets"),
@@ -7812,8 +7807,7 @@ elif page == "Billing":
 
                 st.dataframe(
                     billing_view,
-                    width='stretch',
-                    hide_index=True,
+                                        hide_index=True,
                     column_config={
                         "Serial Number": st.column_config.TextColumn("Serial"),
                         "Current Status": st.column_config.TextColumn("State"),
@@ -7873,8 +7867,7 @@ elif page == "Billing":
 
                 st.dataframe(
                     paused_view,
-                    width='stretch',
-                    hide_index=True,
+                                        hide_index=True,
                     column_config={
                         "Serial Number": st.column_config.TextColumn("Serial"),
                         "Current Status": st.column_config.TextColumn("State"),
@@ -8088,8 +8081,7 @@ elif page == "Billing":
 
                     st.dataframe(
                         period_history[available_cols],
-                        width='stretch',
-                        hide_index=True,
+                                                hide_index=True,
                         column_config={
                             "Status": st.column_config.TextColumn("Status"),
                             "Closed At": st.column_config.DatetimeColumn("Closed", format="YYYY-MM-DD HH:mm"),
