@@ -8745,6 +8745,9 @@ elif page == "Settings":
 
                             st.success(f"Migration complete! Migrated {migrated_assets} assets and {migrated_clients} clients.")
                             st.session_state.show_migration = False
+                            # Mark data as stale to force refresh
+                            st.session_state.data_stale = True
+                            st.info("Please refresh the page or go to Dashboard to see the migrated data.")
                     except Exception as e:
                         st.error(f"Migration error: {str(e)}")
 
