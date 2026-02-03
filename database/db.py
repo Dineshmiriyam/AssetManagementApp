@@ -1300,3 +1300,244 @@ def get_current_billing_period() -> Dict:
         "closed_at": None,
         "closed_by": None
     }
+
+
+# ============================================
+# DATABASE SETUP / INITIALIZATION
+# ============================================
+
+def setup_database() -> Tuple[bool, str]:
+    """Create all required tables if they don't exist"""
+    conn = DatabaseConnection.get_connection()
+    if not conn:
+        return False, "Could not connect to database"
+
+    try:
+        cursor = conn.cursor()
+
+        # Create tables
+        tables_sql = [
+            """
+            CREATE TABLE IF NOT EXISTS assets (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                serial_number VARCHAR(100) UNIQUE NOT NULL,
+                asset_type VARCHAR(50) NOT NULL DEFAULT 'Laptop',
+                brand VARCHAR(50),
+                model VARCHAR(100),
+                specs TEXT,
+                touch_screen BOOLEAN DEFAULT FALSE,
+                processor VARCHAR(100),
+                ram_gb INT,
+                storage_type VARCHAR(20),
+                storage_gb INT,
+                os_installed VARCHAR(50),
+                office_license_key VARCHAR(100),
+                device_password VARCHAR(100),
+                current_status VARCHAR(50) DEFAULT 'IN_STOCK_WORKING',
+                current_location VARCHAR(200),
+                purchase_date DATE,
+                purchase_price DECIMAL(12,2),
+                reuse_count INT DEFAULT 0,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_status (current_status),
+                INDEX idx_serial (serial_number)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS clients (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                client_name VARCHAR(200) NOT NULL,
+                contact_person VARCHAR(100),
+                email VARCHAR(100),
+                phone VARCHAR(20),
+                address TEXT,
+                city VARCHAR(100),
+                state VARCHAR(100),
+                billing_rate DECIMAL(10,2) DEFAULT 0,
+                status VARCHAR(20) DEFAULT 'ACTIVE',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_client_name (client_name)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS assignments (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                asset_id INT NOT NULL,
+                client_id INT,
+                assignment_name VARCHAR(200),
+                assignment_type VARCHAR(50) DEFAULT 'Rental',
+                shipment_date DATE,
+                return_date DATE,
+                tracking_number VARCHAR(100),
+                monthly_rate DECIMAL(10,2),
+                status VARCHAR(50) DEFAULT 'ACTIVE',
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_asset (asset_id),
+                INDEX idx_client (client_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS issues (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                asset_id INT,
+                issue_title VARCHAR(200),
+                issue_type VARCHAR(50),
+                issue_category VARCHAR(100),
+                description TEXT,
+                reported_date DATE,
+                resolved_date DATE,
+                severity VARCHAR(20) DEFAULT 'Medium',
+                status VARCHAR(50) DEFAULT 'Open',
+                resolution_notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_asset (asset_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS repairs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                asset_id INT,
+                repair_reference VARCHAR(100) UNIQUE,
+                sent_date DATE,
+                return_date DATE,
+                expected_return DATE,
+                vendor_name VARCHAR(200),
+                repair_description TEXT,
+                repair_cost DECIMAL(10,2),
+                status VARCHAR(50) DEFAULT 'WITH_VENDOR',
+                repair_notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_asset (asset_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS state_change_log (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                asset_id INT,
+                serial_number VARCHAR(100),
+                old_status VARCHAR(50),
+                new_status VARCHAR(50),
+                changed_by VARCHAR(50),
+                user_role VARCHAR(20),
+                success BOOLEAN DEFAULT TRUE,
+                error_message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_asset (asset_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS activity_log (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                action_type VARCHAR(50) NOT NULL,
+                action_category VARCHAR(30) NOT NULL,
+                asset_id INT,
+                serial_number VARCHAR(100),
+                client_id INT,
+                client_name VARCHAR(200),
+                old_value VARCHAR(100),
+                new_value VARCHAR(100),
+                description TEXT,
+                user_role VARCHAR(20) NOT NULL,
+                user_identifier VARCHAR(100),
+                ip_address VARCHAR(45),
+                success BOOLEAN DEFAULT TRUE,
+                error_message TEXT,
+                billing_impact BOOLEAN DEFAULT FALSE,
+                metadata JSON,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_action_type (action_type),
+                INDEX idx_asset (asset_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS billing_periods (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                period_year INT NOT NULL,
+                period_month INT NOT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'OPEN',
+                closed_by VARCHAR(100),
+                closed_at TIMESTAMP NULL,
+                reopened_by VARCHAR(100),
+                reopened_at TIMESTAMP NULL,
+                total_revenue DECIMAL(12,2) DEFAULT 0,
+                total_assets INT DEFAULT 0,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY idx_period (period_year, period_month)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS billing_records (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                client_id INT NOT NULL,
+                billing_month DATE NOT NULL,
+                total_assets INT DEFAULT 0,
+                total_amount DECIMAL(12,2) DEFAULT 0,
+                status VARCHAR(20) DEFAULT 'PENDING',
+                invoice_number VARCHAR(50),
+                paid_date DATE,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_client (client_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                username VARCHAR(50) UNIQUE NOT NULL,
+                email VARCHAR(100) UNIQUE NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                full_name VARCHAR(100),
+                role VARCHAR(20) DEFAULT 'operations',
+                is_active BOOLEAN DEFAULT TRUE,
+                last_login TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """
+        ]
+
+        created_tables = []
+        for sql in tables_sql:
+            try:
+                cursor.execute(sql)
+                # Extract table name from SQL
+                table_name = sql.split("CREATE TABLE IF NOT EXISTS")[1].split("(")[0].strip()
+                created_tables.append(table_name)
+            except Error as e:
+                print(f"Error creating table: {e}")
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return True, f"Successfully created/verified {len(created_tables)} tables: {', '.join(created_tables)}"
+
+    except Error as e:
+        return False, f"Database setup error: {str(e)}"
+
+
+def check_tables_exist() -> Tuple[bool, List[str]]:
+    """Check which tables exist in the database"""
+    conn = DatabaseConnection.get_connection()
+    if not conn:
+        return False, []
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SHOW TABLES")
+        tables = [row[0] for row in cursor.fetchall()]
+        cursor.close()
+        conn.close()
+        return True, tables
+    except Error as e:
+        return False, []

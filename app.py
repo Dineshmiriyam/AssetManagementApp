@@ -200,10 +200,35 @@ if DATA_SOURCE == "mysql":
             close_billing_period,
             reopen_billing_period,
             can_modify_billing_data,
-            get_current_billing_period
+            get_current_billing_period,
+            # Database setup functions
+            setup_database,
+            check_tables_exist
         )
         from database.config import DB_CONFIG
         MYSQL_AVAILABLE = True
+
+        # Auto-setup database tables on startup
+        if 'db_setup_done' not in st.session_state:
+            success, tables = check_tables_exist()
+            required_tables = ['assets', 'clients', 'assignments', 'issues', 'repairs']
+            if success:
+                missing_tables = [t for t in required_tables if t not in tables]
+                if missing_tables:
+                    setup_success, setup_msg = setup_database()
+                    if setup_success:
+                        st.session_state.db_setup_done = True
+                        st.toast("Database tables initialized successfully!")
+                    else:
+                        st.error(f"Database setup failed: {setup_msg}")
+                else:
+                    st.session_state.db_setup_done = True
+            else:
+                # Try to setup anyway
+                setup_success, setup_msg = setup_database()
+                if setup_success:
+                    st.session_state.db_setup_done = True
+
     except ImportError as e:
         MYSQL_AVAILABLE = False
         st.warning(f"MySQL module not available: {e}. Using Airtable.")
