@@ -6069,24 +6069,16 @@ if page == "Dashboard":
                         )
                     )
 
-                    # Render chart with click events
-                    selected_status = plotly_events(
+                    # Render chart
+                    st.plotly_chart(
                         fig_status,
-                        click_event=True,
-                        select_event=False,
-                        hover_event=False,
-                        key="status_chart"
+                        use_container_width=True,
+                        config={
+                            'displayModeBar': False,
+                            'scrollZoom': False
+                        },
+                        key="status_pie_chart"
                     )
-
-                    # Handle pie chart click
-                    if selected_status:
-                        clicked_point = selected_status[0]
-                        point_index = clicked_point.get('pointIndex', clicked_point.get('pointNumber', None))
-                        if point_index is not None and point_index < len(status_labels):
-                            clicked_status = status_labels[point_index]
-                            st.session_state.current_page = "Assets"
-                            st.session_state.asset_filter = clicked_status
-                            safe_rerun()
             except Exception as e:
                 render_inline_error(f"Could not render status chart: {str(e)}")
 
