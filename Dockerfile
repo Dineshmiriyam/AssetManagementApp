@@ -9,8 +9,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy app files
 COPY . .
 
-# Railway provides PORT env variable
+# Default port (Railway overrides this)
 ENV PORT=8501
 
-# Run Streamlit with dynamic port
-CMD streamlit run app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true --server.enableCORS=false --server.enableXsrfProtection=false
+# Create startup script
+RUN echo '#!/bin/bash\nstreamlit run app.py --server.port=${PORT} --server.address=0.0.0.0 --server.headless=true --server.enableCORS=false --server.enableXsrfProtection=false' > /app/start.sh && chmod +x /app/start.sh
+
+# Run with shell to expand variables
+CMD ["/bin/bash", "/app/start.sh"]
