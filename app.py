@@ -2062,10 +2062,10 @@ st.markdown("""
 
     /* ===== PLOTLY CHARTS ===== */
     .stPlotlyChart {
-        background-color: #ffffff;
-        border-radius: 8px;
-        padding: 16px;
-        border: 1px solid #e2e8f0;
+        background-color: transparent;
+        border-radius: 0;
+        padding: 0;
+        border: none;
     }
 
     /* Hide Plotly modebar (toolbar) for cleaner look */
