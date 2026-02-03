@@ -598,7 +598,7 @@ def create_analytics_bar_chart(
         xaxis=dict(
             title=dict(
                 text=x_label,
-                font=dict(size=12, color='#4B5563', weight='normal'),
+                font=dict(size=12, color='#4B5563'),
                 standoff=12
             ),
             tickfont=dict(size=11, color='#6B7280'),
@@ -614,7 +614,7 @@ def create_analytics_bar_chart(
         yaxis=dict(
             title=dict(
                 text=y_label,
-                font=dict(size=12, color='#4B5563', weight='normal'),
+                font=dict(size=12, color='#4B5563'),
                 standoff=12
             ),
             tickfont=dict(size=11, color='#9CA3AF'),
