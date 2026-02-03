@@ -203,7 +203,8 @@ if DATA_SOURCE == "mysql":
             get_current_billing_period,
             # Database setup functions
             setup_database,
-            check_tables_exist
+            check_tables_exist,
+            get_table_stats
         )
         from database.config import DB_CONFIG
         MYSQL_AVAILABLE = True
@@ -8642,6 +8643,114 @@ elif page == "Settings":
                 st.success(f"MySQL: {message}")
             else:
                 st.error(f"MySQL: {message}")
+
+        st.markdown("---")
+
+        # Database Tables Status
+        st.markdown("""
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #8b5cf6;">
+            <div style="width: 4px; height: 20px; background: #8b5cf6; border-radius: 2px;"></div>
+            <span style="font-size: 16px; font-weight: 600; color: #1f2937;">Database Tables Status</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button("Check Tables", key="check_tables"):
+            table_stats = get_table_stats()
+            if table_stats:
+                st.success("Database tables found!")
+                for table, count in table_stats.items():
+                    if count >= 0:
+                        st.write(f"✅ **{table}**: {count} rows")
+                    else:
+                        st.write(f"❌ **{table}**: Not found")
+            else:
+                st.error("Could not connect to database")
+
+        col_setup, col_migrate = st.columns(2)
+        with col_setup:
+            if st.button("Setup/Create Tables", key="setup_tables"):
+                success, message = setup_database()
+                if success:
+                    st.success(message)
+                else:
+                    st.error(message)
+
+        with col_migrate:
+            if st.button("Migrate from Airtable", key="migrate_data"):
+                st.session_state.show_migration = True
+
+        # Migration Dialog
+        if st.session_state.get('show_migration', False):
+            st.warning("⚠️ This will copy all data from Airtable to MySQL. Existing MySQL data will NOT be deleted.")
+            if st.button("Confirm Migration", key="confirm_migrate", type="primary"):
+                with st.spinner("Migrating data from Airtable to MySQL..."):
+                    try:
+                        # Get Airtable data
+                        airtable_api = get_airtable_api()
+                        if not airtable_api:
+                            st.error("Airtable API not configured")
+                        else:
+                            base = airtable_api.base(AIRTABLE_BASE_ID)
+
+                            # Migrate Assets
+                            st.write("Migrating assets...")
+                            assets_table = base.table("Assets")
+                            assets = assets_table.all()
+                            migrated_assets = 0
+                            for record in assets:
+                                fields = record.get('fields', {})
+                                try:
+                                    mysql_create_asset({
+                                        'Serial Number': fields.get('Serial Number', ''),
+                                        'Asset Type': fields.get('Asset Type', 'Laptop'),
+                                        'Brand': fields.get('Brand', ''),
+                                        'Model': fields.get('Model', ''),
+                                        'Current Status': fields.get('Current Status', 'IN_STOCK_WORKING'),
+                                        'Current Location': fields.get('Current Location', ''),
+                                        'Specs': fields.get('Specs', ''),
+                                        'RAM (GB)': fields.get('RAM (GB)', 0),
+                                        'Storage (GB)': fields.get('Storage (GB)', 0),
+                                        'Storage Type': fields.get('Storage Type', ''),
+                                        'Processor': fields.get('Processor', ''),
+                                        'Touch Screen': fields.get('Touch Screen', False),
+                                        'OS Installed': fields.get('OS Installed', ''),
+                                        'Notes': fields.get('Notes', '')
+                                    })
+                                    migrated_assets += 1
+                                except Exception as e:
+                                    st.write(f"Skipped asset: {fields.get('Serial Number', 'Unknown')} - {str(e)[:50]}")
+
+                            # Migrate Clients
+                            st.write("Migrating clients...")
+                            clients_table = base.table("Clients")
+                            clients = clients_table.all()
+                            migrated_clients = 0
+                            for record in clients:
+                                fields = record.get('fields', {})
+                                try:
+                                    from database.db import create_client
+                                    create_client({
+                                        'Client Name': fields.get('Client Name', ''),
+                                        'Contact Person': fields.get('Contact Person', ''),
+                                        'Email': fields.get('Email', ''),
+                                        'Phone': fields.get('Phone', ''),
+                                        'Address': fields.get('Address', ''),
+                                        'City': fields.get('City', ''),
+                                        'State': fields.get('State', ''),
+                                        'Status': fields.get('Status', 'ACTIVE')
+                                    })
+                                    migrated_clients += 1
+                                except Exception as e:
+                                    st.write(f"Skipped client: {fields.get('Client Name', 'Unknown')} - {str(e)[:50]}")
+
+                            st.success(f"Migration complete! Migrated {migrated_assets} assets and {migrated_clients} clients.")
+                            st.session_state.show_migration = False
+                    except Exception as e:
+                        st.error(f"Migration error: {str(e)}")
+
+            if st.button("Cancel", key="cancel_migrate"):
+                st.session_state.show_migration = False
+                st.rerun()
 
         st.markdown("---")
 

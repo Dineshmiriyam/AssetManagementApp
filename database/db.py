@@ -1541,3 +1541,30 @@ def check_tables_exist() -> Tuple[bool, List[str]]:
         return True, tables
     except Error as e:
         return False, []
+
+
+def get_table_stats() -> Dict[str, int]:
+    """Get row counts for all tables"""
+    conn = DatabaseConnection.get_connection()
+    if not conn:
+        return {}
+
+    try:
+        cursor = conn.cursor()
+        stats = {}
+        tables = ['assets', 'clients', 'assignments', 'issues', 'repairs',
+                  'state_change_log', 'activity_log', 'billing_periods', 'billing_records', 'users']
+
+        for table in tables:
+            try:
+                cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                count = cursor.fetchone()[0]
+                stats[table] = count
+            except:
+                stats[table] = -1  # Table doesn't exist
+
+        cursor.close()
+        conn.close()
+        return stats
+    except Error as e:
+        return {}
