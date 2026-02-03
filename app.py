@@ -591,7 +591,7 @@ def create_analytics_bar_chart(
             size=12,
             color='#374151'
         ),
-        margin=dict(t=30, b=70, l=65, r=25),
+        margin=dict(t=30, b=50, l=60, r=20),
         showlegend=False,
 
         # X-axis styling
