@@ -591,7 +591,7 @@ def create_analytics_bar_chart(
             size=12,
             color='#374151'
         ),
-        margin=dict(t=30, b=50, l=60, r=20),
+        margin=dict(t=20, b=60, l=50, r=20),
         showlegend=False,
 
         # X-axis styling
@@ -6047,19 +6047,18 @@ if page == "Dashboard":
                         plot_bgcolor='#FFFFFF',
                         font=dict(family="Inter, -apple-system, sans-serif", size=12, color='#374151'),
                         legend=dict(
-                            orientation="v",
-                            yanchor="middle",
-                            y=0.5,
-                            xanchor="left",
-                            x=0.95,
-                            font=dict(size=12, color='#374151', family="Inter, -apple-system, sans-serif"),
+                            orientation="h",
+                            yanchor="top",
+                            y=-0.05,
+                            xanchor="center",
+                            x=0.5,
+                            font=dict(size=11, color='#374151', family="Inter, -apple-system, sans-serif"),
                             bgcolor='rgba(255,255,255,0)',
                             itemsizing='constant',
                             itemclick=False,
-                            itemdoubleclick=False,
-                            tracegroupgap=10
+                            itemdoubleclick=False
                         ),
-                        margin=dict(t=30, b=30, l=10, r=130),
+                        margin=dict(t=20, b=60, l=20, r=20),
                         showlegend=True,
                         hoverlabel=dict(
                             bgcolor='#374151',
