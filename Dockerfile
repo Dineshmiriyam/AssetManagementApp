@@ -9,8 +9,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy app files
 COPY . .
 
-# Make start script executable
-RUN chmod +x start.sh
-
-# Run with shell form to expand variables
-ENTRYPOINT ["/bin/bash", "start.sh"]
+# Use Python to handle PORT variable
+CMD ["python", "run.py"]
