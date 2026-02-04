@@ -407,15 +407,11 @@ def logout_user(reason: str = None):
 
 def render_login_page():
     """
-    Render the secure login page.
-    Security features:
-    - Rate limiting feedback
-    - Generic error messages
-    - Loading state during authentication
-    - Input validation
-    - No password hints
+    Render premium enterprise login page.
+    Design: Dark card on soft neutral background with modern aesthetics.
+    Security: Rate limiting, generic errors, loading states, input validation.
     """
-    # Check if auth system is available
+    # Check auth system availability
     auth_system_available = AUTH_AVAILABLE
     if auth_system_available:
         try:
@@ -423,51 +419,306 @@ def render_login_page():
         except Exception:
             auth_system_available = False
 
-    # Center the login form
-    col1, col2, col3 = st.columns([1, 2, 1])
+    # Premium Login Page Styles
+    st.markdown("""
+    <style>
+    /* Hide Streamlit default elements for clean login */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+
+    /* Page background - soft neutral beige/cream */
+    .stApp {
+        background: linear-gradient(135deg, #f5f3f0 0%, #e8e4df 50%, #f0ece7 100%) !important;
+        min-height: 100vh;
+    }
+
+    /* Login card container */
+    .login-card {
+        background: linear-gradient(145deg, #1e293b 0%, #0f172a 50%, #1a1f2e 100%);
+        border-radius: 20px;
+        padding: 3rem 2.5rem;
+        box-shadow:
+            0 25px 50px -12px rgba(0, 0, 0, 0.25),
+            0 0 0 1px rgba(255, 255, 255, 0.05);
+        max-width: 420px;
+        margin: 0 auto;
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Subtle gradient overlay */
+    .login-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(249, 115, 22, 0.5), transparent);
+    }
+
+    /* Avatar/Logo container */
+    .login-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #F97316 0%, #ea580c 100%);
+        margin: 0 auto 1.5rem auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 8px 24px rgba(249, 115, 22, 0.3);
+    }
+
+    .login-avatar svg {
+        width: 40px;
+        height: 40px;
+        fill: white;
+    }
+
+    /* Title styling */
+    .login-title {
+        color: #ffffff;
+        font-size: 1.5rem;
+        font-weight: 600;
+        text-align: center;
+        margin-bottom: 0.5rem;
+        letter-spacing: -0.025em;
+    }
+
+    .login-subtitle {
+        color: #94a3b8;
+        font-size: 0.9rem;
+        text-align: center;
+        margin-bottom: 2rem;
+        font-weight: 400;
+    }
+
+    /* Form styling overrides */
+    .login-form-wrapper .stTextInput > label {
+        color: #94a3b8 !important;
+        font-size: 0.85rem !important;
+        font-weight: 500 !important;
+        margin-bottom: 0.5rem !important;
+    }
+
+    .login-form-wrapper .stTextInput > div > div {
+        background: rgba(255, 255, 255, 0.03) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 12px !important;
+        transition: all 0.2s ease !important;
+    }
+
+    .login-form-wrapper .stTextInput > div > div:hover {
+        border-color: rgba(249, 115, 22, 0.3) !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+    }
+
+    .login-form-wrapper .stTextInput > div > div:focus-within {
+        border-color: #F97316 !important;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15) !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+    }
+
+    .login-form-wrapper .stTextInput input {
+        color: #ffffff !important;
+        font-size: 0.95rem !important;
+        padding: 0.875rem 1rem !important;
+        background: transparent !important;
+    }
+
+    .login-form-wrapper .stTextInput input::placeholder {
+        color: #64748b !important;
+    }
+
+    /* Primary button styling */
+    .login-form-wrapper .stFormSubmitButton > button {
+        background: linear-gradient(135deg, #F97316 0%, #ea580c 100%) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 12px !important;
+        padding: 0.875rem 2rem !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.025em !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4) !important;
+    }
+
+    .login-form-wrapper .stFormSubmitButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 24px rgba(249, 115, 22, 0.5) !important;
+    }
+
+    .login-form-wrapper .stFormSubmitButton > button:active {
+        transform: translateY(0) !important;
+    }
+
+    .login-form-wrapper .stFormSubmitButton > button:disabled {
+        background: linear-gradient(135deg, #475569 0%, #334155 100%) !important;
+        box-shadow: none !important;
+        cursor: not-allowed !important;
+    }
+
+    /* Error/Warning message styling */
+    .login-form-wrapper .stAlert {
+        background: rgba(239, 68, 68, 0.1) !important;
+        border: 1px solid rgba(239, 68, 68, 0.3) !important;
+        border-radius: 10px !important;
+        color: #fca5a5 !important;
+    }
+
+    .login-form-wrapper .stAlert [data-testid="stMarkdownContainer"] p {
+        color: #fca5a5 !important;
+    }
+
+    /* Warning styling */
+    .login-form-wrapper div[data-baseweb="notification"] {
+        background: rgba(234, 179, 8, 0.1) !important;
+        border: 1px solid rgba(234, 179, 8, 0.3) !important;
+        border-radius: 10px !important;
+    }
+
+    /* Footer text */
+    .login-footer {
+        text-align: center;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .login-footer-text {
+        color: #64748b;
+        font-size: 0.8rem;
+    }
+
+    .login-footer-brand {
+        color: #94a3b8;
+        font-size: 0.75rem;
+        margin-top: 0.5rem;
+    }
+
+    /* Service unavailable styling */
+    .service-unavailable {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .service-unavailable-text {
+        color: #fca5a5;
+        font-size: 0.9rem;
+        text-align: center;
+        margin: 0;
+    }
+
+    /* Session message styling */
+    .session-message {
+        background: rgba(234, 179, 8, 0.1);
+        border: 1px solid rgba(234, 179, 8, 0.2);
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .session-message-text {
+        color: #fcd34d;
+        font-size: 0.85rem;
+        text-align: center;
+        margin: 0;
+    }
+
+    /* Input icon styling */
+    .input-icon {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #64748b;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .login-card {
+            margin: 1rem;
+            padding: 2rem 1.5rem;
+        }
+    }
+
+    /* Animation keyframes */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .login-card {
+        animation: fadeInUp 0.4s ease-out;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Centered layout
+    col1, col2, col3 = st.columns([1, 1.2, 1])
 
     with col2:
+        # Add top spacing
+        st.markdown("<div style='height: 2rem;'></div>", unsafe_allow_html=True)
+
+        # Login card HTML structure
         st.markdown("""
-        <div style="text-align: center; padding: 2rem 0;">
-            <h1 style="color: #F97316; margin-bottom: 0.5rem;">Asset Management System</h1>
-            <p style="color: #6B7280; font-size: 1rem;">Sign in to continue</p>
+        <div class="login-card">
+            <div class="login-avatar">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+                </svg>
+            </div>
+            <h1 class="login-title">Asset Management</h1>
+            <p class="login-subtitle">Sign in to your account</p>
         </div>
         """, unsafe_allow_html=True)
 
-        # Show service unavailable message if DB is down
+        # Service unavailable state
         if not auth_system_available:
-            st.error("Authentication service is temporarily unavailable. Please try again later.")
             st.markdown("""
-            <div style="text-align: center; margin-top: 2rem; color: #9CA3AF; font-size: 0.85rem;">
-                <p>Powered by nxtby.com</p>
+            <div class="login-card" style="margin-top: -2.5rem; padding-top: 0;">
+                <div class="service-unavailable">
+                    <p class="service-unavailable-text">
+                        Authentication service is temporarily unavailable.<br>
+                        Please try again later.
+                    </p>
+                </div>
+                <div class="login-footer">
+                    <p class="login-footer-brand">Powered by nxtby.com</p>
+                </div>
             </div>
             """, unsafe_allow_html=True)
             return
 
-        # Show session expiry or error messages
+        # Session error message
         if st.session_state.login_error:
-            st.warning(st.session_state.login_error)
+            st.markdown(f"""
+            <div style="margin-top: -2rem; margin-bottom: 1rem;">
+                <div class="session-message">
+                    <p class="session-message-text">{st.session_state.login_error}</p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
             st.session_state.login_error = None
 
-        # CSS for input validation feedback
-        st.markdown("""
-        <style>
-        .stTextInput > div > div > input:focus {
-            border-color: #F97316 !important;
-            box-shadow: 0 0 0 1px #F97316 !important;
-        }
-        .login-form-container {
-            background: #ffffff;
-            padding: 1.5rem;
-            border-radius: 8px;
-            border: 1px solid #e5e7eb;
-        }
-        </style>
-        """, unsafe_allow_html=True)
+        # Form container with custom styling
+        st.markdown('<div class="login-form-wrapper">', unsafe_allow_html=True)
 
-        # Login form
         with st.form("login_form", clear_on_submit=False):
-            # Username field with autofocus via JavaScript
+            # Username field
             username = st.text_input(
                 "Username",
                 placeholder="Enter your username",
@@ -484,18 +735,20 @@ def render_login_page():
                 disabled=st.session_state.login_processing
             )
 
-            col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
-            with col_btn2:
-                # Disable button while processing
-                submit = st.form_submit_button(
-                    "Sign In" if not st.session_state.login_processing else "Signing in...",
-                    use_container_width=True,
-                    type="primary",
-                    disabled=st.session_state.login_processing
-                )
+            # Spacing before button
+            st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
 
+            # Submit button
+            button_text = "Sign In" if not st.session_state.login_processing else "Signing in..."
+            submit = st.form_submit_button(
+                button_text,
+                use_container_width=True,
+                type="primary",
+                disabled=st.session_state.login_processing
+            )
+
+            # Authentication logic
             if submit and not st.session_state.login_processing:
-                # Input validation
                 username_clean = username.strip() if username else ""
                 password_provided = bool(password)
 
@@ -504,37 +757,43 @@ def render_login_page():
                 elif len(username_clean) < 2:
                     st.error("Please enter a valid username")
                 else:
-                    # Set processing state
                     st.session_state.login_processing = True
 
-                    # Perform authentication
                     try:
                         success, user_data, message = authenticate_user(username_clean, password)
 
                         if success and user_data:
-                            # Login successful
                             login_user(user_data)
                             safe_rerun()
                         else:
-                            # Login failed - show generic message
                             st.session_state.login_processing = False
                             st.error(message)
-                    except Exception as e:
+                    except Exception:
                         st.session_state.login_processing = False
                         st.error("An error occurred. Please try again.")
 
-        # Autofocus username field
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # Footer
         st.markdown("""
-        <script>
-        const usernameInput = window.parent.document.querySelector('input[aria-label="Username"]');
-        if (usernameInput) usernameInput.focus();
-        </script>
+        <div style="text-align: center; margin-top: 1.5rem;">
+            <p style="color: #64748b; font-size: 0.75rem; margin: 0;">
+                Secure login protected by encryption
+            </p>
+            <p style="color: #94a3b8; font-size: 0.8rem; margin-top: 0.75rem;">
+                Powered by <span style="color: #F97316;">nxtby.com</span>
+            </p>
+        </div>
         """, unsafe_allow_html=True)
 
+        # Autofocus script
         st.markdown("""
-        <div style="text-align: center; margin-top: 2rem; color: #9CA3AF; font-size: 0.85rem;">
-            <p>Powered by nxtby.com</p>
-        </div>
+        <script>
+        setTimeout(function() {
+            const input = window.parent.document.querySelector('input[aria-label="Username"]');
+            if (input) input.focus();
+        }, 100);
+        </script>
         """, unsafe_allow_html=True)
 
 # ============================================
