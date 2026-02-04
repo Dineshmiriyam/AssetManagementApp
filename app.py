@@ -207,7 +207,18 @@ if DATA_SOURCE == "mysql":
             get_table_stats
         )
         from database.config import DB_CONFIG
+        from database.auth import (
+            authenticate_user,
+            create_user,
+            get_all_users,
+            update_user,
+            change_password,
+            deactivate_user,
+            activate_user,
+            get_user_count
+        )
         MYSQL_AVAILABLE = True
+        AUTH_AVAILABLE = True
 
         # Auto-setup database tables on startup
         if 'db_setup_done' not in st.session_state:
@@ -232,10 +243,12 @@ if DATA_SOURCE == "mysql":
 
     except ImportError as e:
         MYSQL_AVAILABLE = False
+        AUTH_AVAILABLE = False
         st.warning(f"MySQL module not available: {e}. Using Airtable.")
         DATA_SOURCE = "airtable"
 else:
     MYSQL_AVAILABLE = False
+    AUTH_AVAILABLE = False
 
 # Compatibility helper for st.rerun (works with older and newer Streamlit versions)
 def safe_rerun():
@@ -248,6 +261,98 @@ def safe_rerun():
         # Fallback: use newer Streamlit internal API
         from streamlit import runtime
         runtime.get_instance().request_rerun()
+
+# ============================================
+# AUTHENTICATION & SESSION MANAGEMENT
+# ============================================
+SESSION_TIMEOUT_HOURS = 8  # Auto-logout after 8 hours
+
+def init_auth_session():
+    """Initialize authentication session state"""
+    if 'authenticated' not in st.session_state:
+        st.session_state.authenticated = False
+    if 'user_id' not in st.session_state:
+        st.session_state.user_id = None
+    if 'username' not in st.session_state:
+        st.session_state.username = None
+    if 'user_email' not in st.session_state:
+        st.session_state.user_email = None
+    if 'user_full_name' not in st.session_state:
+        st.session_state.user_full_name = None
+    if 'login_time' not in st.session_state:
+        st.session_state.login_time = None
+
+def check_session_timeout():
+    """Check if session has timed out"""
+    if st.session_state.authenticated and st.session_state.login_time:
+        elapsed = datetime.now() - st.session_state.login_time
+        if elapsed.total_seconds() > (SESSION_TIMEOUT_HOURS * 3600):
+            logout_user()
+            st.warning("Session expired. Please login again.")
+            return True
+    return False
+
+def login_user(user_data: dict):
+    """Set session state after successful login"""
+    st.session_state.authenticated = True
+    st.session_state.user_id = user_data['id']
+    st.session_state.username = user_data['username']
+    st.session_state.user_email = user_data.get('email', '')
+    st.session_state.user_full_name = user_data.get('full_name', user_data['username'])
+    st.session_state.user_role = user_data.get('role', 'operations')
+    st.session_state.login_time = datetime.now()
+
+def logout_user():
+    """Clear session state on logout"""
+    st.session_state.authenticated = False
+    st.session_state.user_id = None
+    st.session_state.username = None
+    st.session_state.user_email = None
+    st.session_state.user_full_name = None
+    st.session_state.user_role = None
+    st.session_state.login_time = None
+
+def render_login_page():
+    """Render the login page"""
+    # Center the login form
+    col1, col2, col3 = st.columns([1, 2, 1])
+
+    with col2:
+        st.markdown("""
+        <div style="text-align: center; padding: 2rem 0;">
+            <h1 style="color: #F97316; margin-bottom: 0.5rem;">Asset Management System</h1>
+            <p style="color: #6B7280; font-size: 1rem;">Sign in to continue</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Login form
+        with st.form("login_form", clear_on_submit=False):
+            username = st.text_input("Username", placeholder="Enter your username")
+            password = st.text_input("Password", type="password", placeholder="Enter your password")
+
+            col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
+            with col_btn2:
+                submit = st.form_submit_button("Login", use_container_width=True, type="primary")
+
+            if submit:
+                if not username or not password:
+                    st.error("Please enter both username and password")
+                elif AUTH_AVAILABLE:
+                    success, user_data, message = authenticate_user(username, password)
+                    if success:
+                        login_user(user_data)
+                        st.success("Login successful!")
+                        safe_rerun()
+                    else:
+                        st.error(message)
+                else:
+                    st.error("Authentication system not available")
+
+        st.markdown("""
+        <div style="text-align: center; margin-top: 2rem; color: #9CA3AF; font-size: 0.85rem;">
+            <p>Powered by nxtby.com</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 # ============================================
 # ROLE-BASED CONFIGURATION
@@ -4601,6 +4706,7 @@ PERMISSIONS = {
     "page.quick_actions": ["admin", "operations"],
     "page.issues_repairs": ["admin", "operations"],
     "page.billing": ["admin", "finance"],
+    "page.users": ["admin"],
     "page.settings": ["admin"],
 
     # Action permissions
@@ -4916,6 +5022,7 @@ MENU_GROUPS = {
         {"name": "Activity Log", "icon": "◉", "key": "activity_log"},  # All roles - view based on role
     ],
     "SYSTEM": [
+        {"name": "User Management", "icon": "◉", "key": "users", "roles": ["admin"]},  # Admin only
         {"name": "Settings", "icon": "⚙", "key": "settings", "roles": ["admin"]},  # Admin only
     ],
 }
@@ -4932,13 +5039,26 @@ def get_visible_menu_items(role):
             visible_groups[group_name] = visible_items
     return visible_groups
 
+# ============================================
+# AUTHENTICATION CHECK
+# ============================================
+# Initialize auth session
+init_auth_session()
+
+# Check session timeout
+if st.session_state.authenticated:
+    check_session_timeout()
+
+# Show login page if not authenticated
+if not st.session_state.authenticated:
+    render_login_page()
+    st.stop()
+
 # Initialize session state for navigation
 if "current_page" not in st.session_state:
     st.session_state.current_page = "Dashboard"
 
-# Initialize session state for user role
-if "user_role" not in st.session_state:
-    st.session_state.user_role = "admin"  # Default role
+# User role is now set from login (no need for default)
 
 # Check API/Database connection first
 if DATA_SOURCE == "mysql" and MYSQL_AVAILABLE:
@@ -4975,43 +5095,35 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-# Role Selector
-st.sidebar.markdown("### View As")
-role_options = list(USER_ROLES.keys())
-role_names = [USER_ROLES[r]['name'] for r in role_options]
+# User Info & Logout
+user_display_name = st.session_state.user_full_name or st.session_state.username
+user_role = st.session_state.user_role or "operations"
+role_display = USER_ROLES.get(user_role, {}).get('name', user_role.title())
 
-# Get current index for role
-current_role = st.session_state.user_role
-current_role_index = role_options.index(current_role) if current_role in role_options else 0
+st.sidebar.markdown(f"""
+<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+    <div style="color: #F97316; font-weight: 600; font-size: 0.9rem;">
+        Welcome, {user_display_name}
+    </div>
+    <div style="color: #94a3b8; font-size: 0.8rem; margin-top: 4px;">
+        Role: {role_display}
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-selected_role_name = st.sidebar.selectbox(
-    "Select Role",
-    options=role_names,
-    index=current_role_index,
-    key="role_selector",
-    label_visibility="collapsed"
-)
-
-# Update role if changed
-selected_role_key = role_options[role_names.index(selected_role_name)]
-if selected_role_key != st.session_state.user_role:
-    old_role = st.session_state.user_role
-    st.session_state.user_role = selected_role_key
-    # Log role switch activity
+# Logout button
+if st.sidebar.button("Logout", key="logout_btn", use_container_width=True):
+    # Log logout activity
     log_activity_event(
-        action_type="ROLE_SWITCH",
-        category="system",
-        user_role=selected_role_key,
-        description=f"Role switched: {old_role} -> {selected_role_key}",
-        old_value=old_role,
-        new_value=selected_role_key,
+        action_type="USER_LOGOUT",
+        category="authentication",
+        user_role=st.session_state.user_role,
+        description=f"User logged out: {st.session_state.username}",
         success=True
     )
-    # Check if current page is accessible with new role
-    new_visible_menu = get_visible_menu_items(selected_role_key)
-    accessible_pages = [item["name"] for items in new_visible_menu.values() for item in items]
-    if st.session_state.current_page not in accessible_pages:
-        st.session_state.current_page = "Dashboard"  # Redirect to Dashboard
+    logout_user()
+    safe_rerun()
     safe_rerun()  # Force immediate re-render
 
 # Show role description
@@ -8565,6 +8677,213 @@ elif page == "Activity Log":
                 render_empty_state("no_activity", show_action=False)
         else:
             render_empty_state("no_activity", show_action=False)
+
+# ============================================
+# USER MANAGEMENT PAGE
+# ============================================
+elif page == "User Management":
+    # Route-level access control (defense in depth)
+    if not check_page_access("User Management", st.session_state.user_role):
+        render_access_denied(required_roles=["admin"])
+        st.stop()
+
+    st.markdown('<p class="main-header">User Management</p>', unsafe_allow_html=True)
+
+    # User Management Tabs
+    user_tabs = st.tabs(["All Users", "Create User"])
+
+    # TAB 1: All Users
+    with user_tabs[0]:
+        st.markdown("""
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #3b82f6;">
+            <div style="width: 4px; height: 20px; background: #3b82f6; border-radius: 2px;"></div>
+            <span style="font-size: 16px; font-weight: 600; color: #1f2937;">Registered Users</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if AUTH_AVAILABLE:
+            users = get_all_users()
+
+            if users:
+                # User stats
+                total_users = len(users)
+                active_users = len([u for u in users if u.get('is_active', False)])
+                admin_count = len([u for u in users if u.get('role') == 'admin'])
+
+                stat_col1, stat_col2, stat_col3, stat_col4 = st.columns(4)
+                with stat_col1:
+                    st.metric("Total Users", total_users)
+                with stat_col2:
+                    st.metric("Active Users", active_users)
+                with stat_col3:
+                    st.metric("Inactive Users", total_users - active_users)
+                with stat_col4:
+                    st.metric("Admins", admin_count)
+
+                st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+
+                # Users table
+                for user in users:
+                    user_id = user['id']
+                    username = user['username']
+                    email = user.get('email', 'N/A')
+                    full_name = user.get('full_name', 'N/A')
+                    role = user.get('role', 'operations')
+                    is_active = user.get('is_active', False)
+                    last_login = user.get('last_login', None)
+
+                    # User card
+                    status_color = "#10b981" if is_active else "#ef4444"
+                    status_text = "Active" if is_active else "Inactive"
+
+                    with st.expander(f"**{full_name or username}** ({username}) - {role.title()}", expanded=False):
+                        col1, col2 = st.columns(2)
+
+                        with col1:
+                            st.write(f"**Username:** {username}")
+                            st.write(f"**Email:** {email}")
+                            st.write(f"**Full Name:** {full_name or 'Not set'}")
+
+                        with col2:
+                            st.write(f"**Role:** {role.title()}")
+                            st.markdown(f"**Status:** <span style='color: {status_color};'>{status_text}</span>", unsafe_allow_html=True)
+                            if last_login:
+                                st.write(f"**Last Login:** {last_login}")
+                            else:
+                                st.write("**Last Login:** Never")
+
+                        st.markdown("---")
+
+                        # Action buttons (don't allow editing own account to prevent lockout)
+                        if username != st.session_state.username:
+                            action_col1, action_col2, action_col3, action_col4 = st.columns(4)
+
+                            with action_col1:
+                                # Change Role
+                                new_role = st.selectbox(
+                                    "Change Role",
+                                    options=["admin", "operations", "finance"],
+                                    index=["admin", "operations", "finance"].index(role) if role in ["admin", "operations", "finance"] else 1,
+                                    key=f"role_{user_id}"
+                                )
+                                if new_role != role:
+                                    if st.button("Update Role", key=f"update_role_{user_id}"):
+                                        success, msg = update_user(user_id, {'role': new_role})
+                                        if success:
+                                            st.success(f"Role updated to {new_role}")
+                                            safe_rerun()
+                                        else:
+                                            st.error(msg)
+
+                            with action_col2:
+                                # Reset Password
+                                st.write("**Reset Password**")
+                                new_pass = st.text_input("New Password", type="password", key=f"pass_{user_id}")
+                                if new_pass:
+                                    if st.button("Reset", key=f"reset_pass_{user_id}"):
+                                        success, msg = change_password(user_id, new_pass)
+                                        if success:
+                                            st.success("Password reset successfully")
+                                        else:
+                                            st.error(msg)
+
+                            with action_col3:
+                                # Activate/Deactivate
+                                if is_active:
+                                    if st.button("Deactivate User", key=f"deactivate_{user_id}"):
+                                        success, msg = deactivate_user(user_id)
+                                        if success:
+                                            st.success("User deactivated")
+                                            safe_rerun()
+                                        else:
+                                            st.error(msg)
+                                else:
+                                    if st.button("Activate User", key=f"activate_{user_id}"):
+                                        success, msg = activate_user(user_id)
+                                        if success:
+                                            st.success("User activated")
+                                            safe_rerun()
+                                        else:
+                                            st.error(msg)
+                        else:
+                            st.info("This is your account. Use Settings to change your own password.")
+            else:
+                st.info("No users found in the database.")
+        else:
+            st.warning("Authentication module not available.")
+
+    # TAB 2: Create User
+    with user_tabs[1]:
+        st.markdown("""
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #10b981;">
+            <div style="width: 4px; height: 20px; background: #10b981; border-radius: 2px;"></div>
+            <span style="font-size: 16px; font-weight: 600; color: #1f2937;">Create New User</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if AUTH_AVAILABLE:
+            with st.form("create_user_form"):
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    new_username = st.text_input("Username *", placeholder="e.g., john.doe")
+                    new_email = st.text_input("Email *", placeholder="e.g., john@example.com")
+                    new_password = st.text_input("Password *", type="password", placeholder="Minimum 6 characters")
+
+                with col2:
+                    new_full_name = st.text_input("Full Name", placeholder="e.g., John Doe")
+                    new_role = st.selectbox("Role *", options=["operations", "finance", "admin"], index=0)
+                    confirm_password = st.text_input("Confirm Password *", type="password")
+
+                submitted = st.form_submit_button("Create User", type="primary")
+
+                if submitted:
+                    # Validation
+                    errors = []
+                    if not new_username:
+                        errors.append("Username is required")
+                    elif len(new_username) < 3:
+                        errors.append("Username must be at least 3 characters")
+
+                    if not new_email:
+                        errors.append("Email is required")
+                    elif "@" not in new_email:
+                        errors.append("Invalid email format")
+
+                    if not new_password:
+                        errors.append("Password is required")
+                    elif len(new_password) < 6:
+                        errors.append("Password must be at least 6 characters")
+
+                    if new_password != confirm_password:
+                        errors.append("Passwords do not match")
+
+                    if errors:
+                        for error in errors:
+                            st.error(error)
+                    else:
+                        success, user_id, msg = create_user(
+                            username=new_username,
+                            email=new_email,
+                            password=new_password,
+                            full_name=new_full_name,
+                            role=new_role
+                        )
+
+                        if success:
+                            st.success(f"User '{new_username}' created successfully!")
+                            # Log activity
+                            log_activity_event(
+                                action_type="USER_CREATED",
+                                category="authentication",
+                                user_role=st.session_state.user_role,
+                                description=f"New user created: {new_username} (role: {new_role})",
+                                success=True
+                            )
+                        else:
+                            st.error(f"Failed to create user: {msg}")
+        else:
+            st.warning("Authentication module not available.")
 
 # ============================================
 # SETTINGS PAGE
