@@ -449,7 +449,7 @@ def render_login_page():
         margin: 0;
     }
 
-    /* ============ WHITE CARD - Style the form container ============ */
+    /* ============ WHITE CARD - Unified card ============ */
     .login-card-header {
         background: #ffffff;
         border-radius: 8px 8px 0 0;
@@ -457,8 +457,10 @@ def render_login_page():
         margin-left: auto;
         margin-right: auto;
         max-width: 380px;
-        box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
         text-align: center;
+        margin-bottom: 0;
+        border-bottom: none;
     }
 
     .login-card-header h2 {
@@ -469,16 +471,24 @@ def render_login_page():
         letter-spacing: 0.05em;
     }
 
-    /* Form as white card body */
+    /* Form as white card body - connected to header */
     [data-testid="stForm"] {
         background: #ffffff !important;
         border: none !important;
         border-radius: 0 0 8px 8px !important;
-        padding: 0.5rem 2rem 2rem 2rem !important;
+        padding: 1rem 2rem 2rem 2rem !important;
         margin-left: auto !important;
         margin-right: auto !important;
+        margin-top: 0 !important;
         max-width: 380px !important;
-        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12) !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    /* Remove gap between header and form */
+    .login-card-header + div,
+    [data-testid="stVerticalBlock"] > div:has([data-testid="stForm"]) {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
     }
 
     /* Hide "Press Enter to submit form" hint */
@@ -547,15 +557,36 @@ def render_login_page():
         color: #9ca3af !important;
     }
 
-    /* Password eye button */
-    .stTextInput button {
+    /* Password eye button - seamless with input */
+    .stTextInput button,
+    .stTextInput [data-testid="passwordShowButton"],
+    .stTextInput [data-testid="baseButton-secondary"] {
         color: #6b7280 !important;
         border: none !important;
         background: transparent !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
+        outline: none !important;
+        padding: 0.5rem !important;
+        margin: 0 !important;
     }
 
     .stTextInput button:hover {
         color: #f97316 !important;
+        background: transparent !important;
+    }
+
+    .stTextInput button:focus {
+        background: transparent !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    /* Remove any background from button container */
+    .stTextInput > div > div > div:last-child,
+    .stTextInput [data-baseweb="input"] > div:last-child {
+        background: transparent !important;
+        border: none !important;
     }
 
     /* Submit Button - Orange like nxtby.com */
