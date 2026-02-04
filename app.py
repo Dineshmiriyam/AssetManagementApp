@@ -407,8 +407,7 @@ def logout_user(reason: str = None):
 
 def render_login_page():
     """
-    Render premium enterprise login page.
-    Uses container-level CSS targeting for unified dark card appearance.
+    Render login page matching mis.nxtby.com reference design.
     """
     # Check auth system availability
     auth_system_available = AUTH_AVAILABLE
@@ -418,356 +417,256 @@ def render_login_page():
         except Exception:
             auth_system_available = False
 
-    # Inject comprehensive login page styles
+    # Complete CSS matching reference design
     st.markdown("""
     <style>
-    /* ================================================
-       RESET & HIDE STREAMLIT DEFAULTS
-       ================================================ */
-    #MainMenu, footer, header,
-    [data-testid="stToolbar"],
-    [data-testid="stDecoration"] {
+    /* Hide Streamlit defaults */
+    #MainMenu, footer, header, [data-testid="stToolbar"], [data-testid="stDecoration"] {
         display: none !important;
-        visibility: hidden !important;
     }
 
-    /* Soft beige page background */
+    /* Page background - clean light gray */
     .stApp {
-        background: linear-gradient(145deg, #f5f0e8 0%, #ebe4d8 50%, #f2ece2 100%) !important;
+        background: #f5f5f5 !important;
+        min-height: 100vh;
     }
 
-    /* ================================================
-       MAIN CONTAINER - Target center column
-       ================================================ */
-    [data-testid="stVerticalBlock"]:has(.login-card-header) {
-        background: linear-gradient(165deg, #1a2332 0%, #0d1420 60%, #151d2b 100%) !important;
-        border-radius: 28px !important;
-        padding: 2.5rem 2rem 2rem 2rem !important;
-        box-shadow:
-            0 40px 80px -20px rgba(10, 15, 25, 0.6),
-            0 0 0 1px rgba(255, 255, 255, 0.04),
-            inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
-        max-width: 440px !important;
-        margin: 0 auto !important;
-        position: relative !important;
-        animation: loginCardReveal 0.5s ease-out !important;
-    }
-
-    @keyframes loginCardReveal {
-        from { opacity: 0; transform: translateY(30px) scale(0.98); }
-        to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-
-    /* Orange accent line at top */
-    [data-testid="stVerticalBlock"]:has(.login-card-header)::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 45%;
-        height: 3px;
-        background: linear-gradient(90deg, transparent, #F97316 50%, transparent);
-        border-radius: 0 0 4px 4px;
-    }
-
-    /* ================================================
-       HEADER SECTION
-       ================================================ */
-    .login-card-header {
+    /* ============ BRAND SECTION (Above Card) ============ */
+    .login-brand {
         text-align: center;
-        padding-bottom: 0.5rem;
+        margin-bottom: 1.25rem;
     }
 
-    .login-avatar {
-        width: 96px;
-        height: 96px;
-        border-radius: 50%;
-        background: linear-gradient(145deg, #F97316 0%, #dd6b12 100%);
-        margin: 0 auto 1.5rem auto;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow:
-            0 16px 40px rgba(249, 115, 22, 0.4),
-            0 0 0 6px rgba(249, 115, 22, 0.1),
-            inset 0 2px 4px rgba(255, 255, 255, 0.2);
-        animation: avatarPulse 2s ease-in-out infinite;
+    .login-brand-logo-img {
+        height: 48px;
+        width: auto;
+        margin-bottom: 0.5rem;
     }
 
-    @keyframes avatarPulse {
-        0%, 100% { box-shadow: 0 16px 40px rgba(249, 115, 22, 0.4), 0 0 0 6px rgba(249, 115, 22, 0.1); }
-        50% { box-shadow: 0 20px 50px rgba(249, 115, 22, 0.5), 0 0 0 8px rgba(249, 115, 22, 0.15); }
-    }
-
-    .login-avatar svg {
-        width: 50px;
-        height: 50px;
-        fill: #ffffff;
-    }
-
-    .login-title {
-        color: #ffffff;
-        font-size: 1.75rem;
-        font-weight: 700;
-        margin: 0 0 0.5rem 0;
-        letter-spacing: -0.03em;
-    }
-
-    .login-subtitle {
-        color: #8896ab;
-        font-size: 0.95rem;
-        font-weight: 400;
+    .login-brand-tagline {
+        color: #6b7280;
+        font-size: 0.875rem;
         margin: 0;
     }
 
-    /* ================================================
-       FORM CONTAINER
-       ================================================ */
-    [data-testid="stForm"] {
-        border: none !important;
-        background: transparent !important;
-        padding: 0 !important;
-        margin-top: 1.5rem !important;
+    /* ============ WHITE CARD - Style the form container ============ */
+    .login-card-header {
+        background: #ffffff;
+        border-radius: 8px 8px 0 0;
+        padding: 1.5rem 2rem 1rem 2rem;
+        margin-left: auto;
+        margin-right: auto;
+        max-width: 380px;
+        box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.08);
+        text-align: center;
     }
 
-    /* ================================================
-       INPUT FIELDS - Dark Theme
-       ================================================ */
+    .login-card-header h2 {
+        color: #111827;
+        font-size: 1.125rem;
+        font-weight: 700;
+        margin: 0;
+        letter-spacing: 0.05em;
+    }
+
+    /* Form as white card body */
+    [data-testid="stForm"] {
+        background: #ffffff !important;
+        border: none !important;
+        border-radius: 0 0 8px 8px !important;
+        padding: 0.5rem 2rem 2rem 2rem !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        max-width: 380px !important;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12) !important;
+    }
+
+    /* Hide "Press Enter to submit form" hint */
+    [data-testid="InputInstructions"],
+    div[data-testid="InputInstructions"],
+    .stTextInput [data-testid="InputInstructions"],
+    [data-testid="stForm"] [data-testid="InputInstructions"] {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        overflow: hidden !important;
+    }
+
+    /* Input Fields - Single clean border ONLY */
+    .stTextInput {
+        margin-bottom: 1rem !important;
+    }
+
     .stTextInput > label {
-        color: #c8d4e3 !important;
-        font-size: 0.78rem !important;
-        font-weight: 600 !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.08em !important;
+        color: #374151 !important;
+        font-size: 0.875rem !important;
+        font-weight: 500 !important;
         margin-bottom: 0.5rem !important;
     }
 
+    /* Remove ALL default borders and shadows */
+    .stTextInput > div,
+    .stTextInput > div > div,
+    .stTextInput > div > div > div,
+    .stTextInput [data-baseweb="input"],
+    .stTextInput [data-baseweb="base-input"] {
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+    }
+
+    /* Apply single border to the container */
     .stTextInput > div > div {
-        background: rgba(10, 18, 30, 0.6) !important;
-        border: 2px solid rgba(136, 150, 171, 0.15) !important;
-        border-radius: 14px !important;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        background: #ffffff !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 6px !important;
+        overflow: hidden !important;
     }
 
     .stTextInput > div > div:hover {
-        border-color: rgba(249, 115, 22, 0.4) !important;
-        background: rgba(10, 18, 30, 0.75) !important;
+        border: 1px solid #9ca3af !important;
     }
 
     .stTextInput > div > div:focus-within {
-        border-color: #F97316 !important;
-        box-shadow:
-            0 0 0 4px rgba(249, 115, 22, 0.12),
-            0 4px 20px rgba(249, 115, 22, 0.15) !important;
-        background: rgba(10, 18, 30, 0.85) !important;
+        border: 1px solid #f97316 !important;
     }
 
-    .stTextInput input {
-        color: #f1f5f9 !important;
-        font-size: 1rem !important;
-        padding: 0.9rem 1.1rem !important;
+    /* Input element itself - NO borders */
+    .stTextInput input,
+    .stTextInput input:focus,
+    .stTextInput input:active,
+    .stTextInput input:hover {
+        color: #111827 !important;
+        font-size: 0.95rem !important;
+        padding: 0.75rem 1rem !important;
         background: transparent !important;
-        caret-color: #F97316 !important;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        -webkit-appearance: none !important;
     }
 
     .stTextInput input::placeholder {
-        color: #5a6a7e !important;
-        font-weight: 400 !important;
+        color: #9ca3af !important;
     }
 
-    /* Password visibility toggle */
+    /* Password eye button */
     .stTextInput button {
-        color: #5a6a7e !important;
-        background: transparent !important;
+        color: #6b7280 !important;
         border: none !important;
-        transition: all 0.2s ease !important;
-        margin-right: 0.5rem !important;
+        background: transparent !important;
+        outline: none !important;
     }
 
     .stTextInput button:hover {
-        color: #F97316 !important;
-        transform: scale(1.1) !important;
+        color: #f97316 !important;
     }
 
-    /* ================================================
-       SUBMIT BUTTON
-       ================================================ */
+    .stTextInput button:focus {
+        outline: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Submit Button - Orange like reference */
     .stFormSubmitButton > button {
-        background: linear-gradient(135deg, #F97316 0%, #e5670e 100%) !important;
+        background: linear-gradient(180deg, #f97316 0%, #ea580c 100%) !important;
         color: #ffffff !important;
         border: none !important;
-        border-radius: 14px !important;
-        padding: 1rem 2rem !important;
-        font-size: 1.05rem !important;
-        font-weight: 700 !important;
-        letter-spacing: 0.02em !important;
-        margin-top: 1rem !important;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow:
-            0 10px 30px rgba(249, 115, 22, 0.4),
-            inset 0 2px 4px rgba(255, 255, 255, 0.15) !important;
+        border-radius: 6px !important;
+        padding: 0.75rem 1.5rem !important;
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
+        margin-top: 0.5rem !important;
+        box-shadow: 0 2px 4px rgba(249, 115, 22, 0.3) !important;
     }
 
     .stFormSubmitButton > button:hover {
-        transform: translateY(-3px) !important;
-        box-shadow:
-            0 16px 40px rgba(249, 115, 22, 0.5),
-            inset 0 2px 4px rgba(255, 255, 255, 0.2) !important;
-    }
-
-    .stFormSubmitButton > button:active {
-        transform: translateY(-1px) !important;
+        background: linear-gradient(180deg, #ea580c 0%, #dc2626 100%) !important;
     }
 
     .stFormSubmitButton > button:disabled {
-        background: linear-gradient(135deg, #3d4a5c 0%, #2d3748 100%) !important;
+        background: #d1d5db !important;
         box-shadow: none !important;
-        cursor: not-allowed !important;
-        transform: none !important;
     }
 
-    /* ================================================
-       ERROR / WARNING ALERTS
-       ================================================ */
+    /* Alerts */
     .stAlert {
-        background: rgba(239, 68, 68, 0.08) !important;
-        border: 1px solid rgba(239, 68, 68, 0.2) !important;
-        border-left: 4px solid #ef4444 !important;
-        border-radius: 12px !important;
-        margin-top: 1rem !important;
-        padding: 0.875rem 1rem !important;
+        background: #fef2f2 !important;
+        border: 1px solid #fecaca !important;
+        border-radius: 6px !important;
+        margin-top: 0.75rem !important;
     }
 
     .stAlert p {
-        color: #fca5a5 !important;
-        font-size: 0.9rem !important;
-        margin: 0 !important;
+        color: #dc2626 !important;
+        font-size: 0.85rem !important;
     }
 
-    /* Session warning */
     .session-warning {
-        background: rgba(251, 191, 36, 0.08);
-        border: 1px solid rgba(251, 191, 36, 0.2);
-        border-left: 4px solid #fbbf24;
-        border-radius: 12px;
-        padding: 0.875rem 1rem;
-        margin-bottom: 1.25rem;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: 6px;
+        padding: 0.625rem 1rem;
+        margin-bottom: 1rem;
         text-align: center;
     }
 
     .session-warning p {
-        color: #fcd34d;
-        font-size: 0.9rem;
-        margin: 0;
-    }
-
-    /* Service unavailable */
-    .service-unavailable {
-        background: rgba(239, 68, 68, 0.06);
-        border: 1px solid rgba(239, 68, 68, 0.15);
-        border-radius: 12px;
-        padding: 1.25rem;
-        margin: 1.5rem 0;
-        text-align: center;
-    }
-
-    .service-unavailable p {
-        color: #f87171;
-        font-size: 0.95rem;
-        margin: 0;
-        line-height: 1.6;
-    }
-
-    /* ================================================
-       FOOTER SECTION
-       ================================================ */
-    .login-footer {
-        margin-top: 2rem;
-        padding-top: 1.5rem;
-        border-top: 1px solid rgba(136, 150, 171, 0.1);
-        text-align: center;
-    }
-
-    .login-footer-secure {
-        color: #5a6a7e;
-        font-size: 0.8rem;
-        margin: 0 0 0.625rem 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-    }
-
-    .login-footer-secure svg {
-        width: 16px;
-        height: 16px;
-        fill: currentColor;
-    }
-
-    .login-footer-brand {
-        color: #8896ab;
+        color: #b45309;
         font-size: 0.85rem;
         margin: 0;
     }
 
-    .login-footer-brand span {
-        color: #F97316;
-        font-weight: 600;
+    .service-unavailable {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: 6px;
+        padding: 1rem;
+        text-align: center;
     }
 
-    /* ================================================
-       RESPONSIVE DESIGN
-       ================================================ */
-    @media (max-width: 640px) {
-        [data-testid="stVerticalBlock"]:has(.login-card-header) {
-            margin: 1rem !important;
-            padding: 2rem 1.5rem 1.75rem 1.5rem !important;
-            border-radius: 24px !important;
-        }
+    .service-unavailable p {
+        color: #dc2626;
+        font-size: 0.85rem;
+        margin: 0;
+    }
 
-        .login-avatar {
-            width: 84px;
-            height: 84px;
+    /* Responsive */
+    @media (max-width: 480px) {
+        .login-card-header {
+            max-width: 100%;
+            border-radius: 0;
+            margin: 0;
         }
-
-        .login-avatar svg {
-            width: 44px;
-            height: 44px;
-        }
-
-        .login-title {
-            font-size: 1.5rem;
-        }
-
-        .stTextInput input {
-            padding: 0.8rem 1rem !important;
-        }
-
-        .stFormSubmitButton > button {
-            padding: 0.9rem 1.5rem !important;
+        [data-testid="stForm"] {
+            max-width: 100% !important;
+            border-radius: 0 !important;
+            margin: 0 !important;
         }
     }
     </style>
     """, unsafe_allow_html=True)
 
-    # Layout - 3 columns for centering
-    col1, col2, col3 = st.columns([1, 1.6, 1])
+    # Top spacing
+    st.markdown("<div style='height: 4vh;'></div>", unsafe_allow_html=True)
+
+    # Brand/Logo section (ABOVE the card) - nxtby.com branding
+    st.markdown("""
+    <div class="login-brand">
+        <img src="https://cdn-media.nxtby.com/media/logo/stores/1/nxtby_orange_1.png" alt="nxtby.com" class="login-brand-logo-img" />
+        <p class="login-brand-tagline">Asset Management System</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Center column for white card
+    col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        # Top spacing
-        st.markdown("<div style='height: 5vh;'></div>", unsafe_allow_html=True)
-
-        # Header section (triggers CSS card styling)
+        # Card header
         st.markdown("""
         <div class="login-card-header">
-            <div class="login-avatar">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
-                </svg>
-            </div>
-            <h1 class="login-title">Asset Management</h1>
-            <p class="login-subtitle">Sign in to your account</p>
+            <h2>SIGN IN</h2>
         </div>
         """, unsafe_allow_html=True)
 
@@ -809,7 +708,7 @@ def render_login_page():
                 disabled=st.session_state.login_processing
             )
 
-            button_text = "Sign In" if not st.session_state.login_processing else "Signing in..."
+            button_text = "Log In" if not st.session_state.login_processing else "Logging in..."
             submit = st.form_submit_button(
                 button_text,
                 use_container_width=True,
@@ -838,19 +737,6 @@ def render_login_page():
                     except Exception:
                         st.session_state.login_processing = False
                         st.error("An error occurred. Please try again.")
-
-        # Footer
-        st.markdown("""
-        <div class="login-footer">
-            <p class="login-footer-secure">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
-                </svg>
-                Secure encrypted connection
-            </p>
-            <p class="login-footer-brand">Powered by <span>nxtby.com</span></p>
-        </div>
-        """, unsafe_allow_html=True)
 
         # Autofocus script
         st.markdown("""
