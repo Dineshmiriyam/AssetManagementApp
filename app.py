@@ -9336,7 +9336,7 @@ elif page == "Import/Export":
 
         # Fetch current assets data
         if DATA_SOURCE == "mysql" and MYSQL_AVAILABLE:
-            export_assets = get_all_assets()
+            export_assets = mysql_get_assets()
         else:
             export_assets = []
 
