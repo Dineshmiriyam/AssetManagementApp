@@ -407,9 +407,8 @@ def logout_user(reason: str = None):
 
 def render_login_page():
     """
-    Render premium enterprise login page.
-    Design: Dark card on soft neutral background with modern aesthetics.
-    Security: Rate limiting, generic errors, loading states, input validation.
+    Render premium enterprise login page with unified dark card design.
+    All elements (header, form, footer) appear as one cohesive card.
     """
     # Check auth system availability
     auth_system_available = AUTH_AVAILABLE
@@ -419,306 +418,342 @@ def render_login_page():
         except Exception:
             auth_system_available = False
 
-    # Premium Login Page Styles
+    # Complete unified login page styles
     st.markdown("""
     <style>
-    /* Hide Streamlit default elements for clean login */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    /* ================================================
+       GLOBAL - Hide Streamlit UI, Set Background
+       ================================================ */
+    #MainMenu, footer, header { visibility: hidden; }
 
-    /* Page background - soft neutral beige/cream */
     .stApp {
-        background: linear-gradient(135deg, #f5f3f0 0%, #e8e4df 50%, #f0ece7 100%) !important;
-        min-height: 100vh;
+        background: linear-gradient(160deg, #f5f1eb 0%, #e9e3d9 50%, #f0ebe3 100%) !important;
     }
 
-    /* Login card container */
-    .login-card {
-        background: linear-gradient(145deg, #1e293b 0%, #0f172a 50%, #1a1f2e 100%);
-        border-radius: 20px;
-        padding: 3rem 2.5rem;
-        box-shadow:
-            0 25px 50px -12px rgba(0, 0, 0, 0.25),
-            0 0 0 1px rgba(255, 255, 255, 0.05);
+    /* Remove default form styling */
+    [data-testid="stForm"] {
+        border: none !important;
+        padding: 0 !important;
+        background: transparent !important;
+    }
+
+    /* ================================================
+       UNIFIED LOGIN CARD - Wraps Everything
+       ================================================ */
+    .login-card-unified {
+        background: linear-gradient(165deg, #1e293b 0%, #0f172a 50%, #131c2e 100%);
+        border-radius: 24px;
+        padding: 2.5rem 2.25rem 2rem 2.25rem;
         max-width: 420px;
         margin: 0 auto;
+        box-shadow:
+            0 30px 60px -20px rgba(15, 23, 42, 0.55),
+            0 0 0 1px rgba(255, 255, 255, 0.04),
+            inset 0 1px 0 rgba(255, 255, 255, 0.03);
         position: relative;
-        overflow: hidden;
+        animation: cardSlideUp 0.45s ease-out;
     }
 
-    /* Subtle gradient overlay */
-    .login-card::before {
+    .login-card-unified::before {
         content: '';
         position: absolute;
         top: 0;
-        left: 0;
-        right: 0;
-        height: 1px;
-        background: linear-gradient(90deg, transparent, rgba(249, 115, 22, 0.5), transparent);
+        left: 50%;
+        transform: translateX(-50%);
+        width: 50%;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, #F97316, transparent);
+        border-radius: 0 0 3px 3px;
     }
 
-    /* Avatar/Logo container */
-    .login-avatar {
-        width: 80px;
-        height: 80px;
+    @keyframes cardSlideUp {
+        from { opacity: 0; transform: translateY(24px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ================================================
+       AVATAR CIRCLE
+       ================================================ */
+    .login-avatar-circle {
+        width: 90px;
+        height: 90px;
         border-radius: 50%;
-        background: linear-gradient(135deg, #F97316 0%, #ea580c 100%);
+        background: linear-gradient(145deg, #F97316 0%, #dc6a13 100%);
         margin: 0 auto 1.5rem auto;
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 8px 24px rgba(249, 115, 22, 0.3);
+        box-shadow:
+            0 14px 36px rgba(249, 115, 22, 0.35),
+            0 0 0 5px rgba(249, 115, 22, 0.08);
     }
 
-    .login-avatar svg {
-        width: 40px;
-        height: 40px;
-        fill: white;
+    .login-avatar-circle svg {
+        width: 46px;
+        height: 46px;
+        fill: #ffffff;
     }
 
-    /* Title styling */
-    .login-title {
+    /* ================================================
+       TYPOGRAPHY
+       ================================================ */
+    .login-heading {
         color: #ffffff;
-        font-size: 1.5rem;
-        font-weight: 600;
+        font-size: 1.625rem;
+        font-weight: 700;
         text-align: center;
-        margin-bottom: 0.5rem;
-        letter-spacing: -0.025em;
+        margin: 0 0 0.375rem 0;
+        letter-spacing: -0.03em;
     }
 
-    .login-subtitle {
+    .login-subheading {
         color: #94a3b8;
         font-size: 0.9rem;
         text-align: center;
-        margin-bottom: 2rem;
+        margin: 0 0 1.75rem 0;
         font-weight: 400;
     }
 
-    /* Form styling overrides */
-    .login-form-wrapper .stTextInput > label {
-        color: #94a3b8 !important;
-        font-size: 0.85rem !important;
-        font-weight: 500 !important;
-        margin-bottom: 0.5rem !important;
+    /* ================================================
+       FORM INPUTS - Dark Theme
+       ================================================ */
+    .login-card-unified .stTextInput > label {
+        color: #e2e8f0 !important;
+        font-size: 0.8rem !important;
+        font-weight: 600 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.06em !important;
+        margin-bottom: 0.4rem !important;
     }
 
-    .login-form-wrapper .stTextInput > div > div {
-        background: rgba(255, 255, 255, 0.03) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    .login-card-unified .stTextInput > div > div {
+        background: rgba(15, 23, 42, 0.5) !important;
+        border: 1.5px solid rgba(148, 163, 184, 0.12) !important;
         border-radius: 12px !important;
         transition: all 0.2s ease !important;
     }
 
-    .login-form-wrapper .stTextInput > div > div:hover {
-        border-color: rgba(249, 115, 22, 0.3) !important;
-        background: rgba(255, 255, 255, 0.05) !important;
+    .login-card-unified .stTextInput > div > div:hover {
+        border-color: rgba(249, 115, 22, 0.35) !important;
+        background: rgba(15, 23, 42, 0.7) !important;
     }
 
-    .login-form-wrapper .stTextInput > div > div:focus-within {
+    .login-card-unified .stTextInput > div > div:focus-within {
         border-color: #F97316 !important;
-        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15) !important;
-        background: rgba(255, 255, 255, 0.05) !important;
+        box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.1) !important;
+        background: rgba(15, 23, 42, 0.8) !important;
     }
 
-    .login-form-wrapper .stTextInput input {
-        color: #ffffff !important;
+    .login-card-unified .stTextInput input {
+        color: #f8fafc !important;
         font-size: 0.95rem !important;
-        padding: 0.875rem 1rem !important;
+        padding: 0.85rem 1rem !important;
         background: transparent !important;
+        caret-color: #F97316 !important;
     }
 
-    .login-form-wrapper .stTextInput input::placeholder {
+    .login-card-unified .stTextInput input::placeholder {
         color: #64748b !important;
     }
 
-    /* Primary button styling */
-    .login-form-wrapper .stFormSubmitButton > button {
+    /* Password toggle button */
+    .login-card-unified .stTextInput button {
+        color: #64748b !important;
+        transition: color 0.2s ease !important;
+    }
+
+    .login-card-unified .stTextInput button:hover {
+        color: #F97316 !important;
+    }
+
+    /* ================================================
+       SUBMIT BUTTON
+       ================================================ */
+    .login-card-unified .stFormSubmitButton > button {
         background: linear-gradient(135deg, #F97316 0%, #ea580c 100%) !important;
-        color: white !important;
+        color: #ffffff !important;
         border: none !important;
         border-radius: 12px !important;
-        padding: 0.875rem 2rem !important;
+        padding: 0.95rem 2rem !important;
         font-size: 1rem !important;
         font-weight: 600 !important;
-        letter-spacing: 0.025em !important;
+        letter-spacing: 0.015em !important;
+        margin-top: 0.75rem !important;
         transition: all 0.2s ease !important;
-        box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4) !important;
+        box-shadow:
+            0 8px 24px rgba(249, 115, 22, 0.35),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
     }
 
-    .login-form-wrapper .stFormSubmitButton > button:hover {
+    .login-card-unified .stFormSubmitButton > button:hover {
         transform: translateY(-2px) !important;
-        box-shadow: 0 8px 24px rgba(249, 115, 22, 0.5) !important;
+        box-shadow:
+            0 14px 32px rgba(249, 115, 22, 0.45),
+            inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
     }
 
-    .login-form-wrapper .stFormSubmitButton > button:active {
+    .login-card-unified .stFormSubmitButton > button:active {
         transform: translateY(0) !important;
     }
 
-    .login-form-wrapper .stFormSubmitButton > button:disabled {
+    .login-card-unified .stFormSubmitButton > button:disabled {
         background: linear-gradient(135deg, #475569 0%, #334155 100%) !important;
         box-shadow: none !important;
         cursor: not-allowed !important;
     }
 
-    /* Error/Warning message styling */
-    .login-form-wrapper .stAlert {
+    /* ================================================
+       ALERTS - Error/Warning inside dark card
+       ================================================ */
+    .login-card-unified .stAlert {
         background: rgba(239, 68, 68, 0.1) !important;
-        border: 1px solid rgba(239, 68, 68, 0.3) !important;
+        border: 1px solid rgba(239, 68, 68, 0.2) !important;
         border-radius: 10px !important;
+        margin-top: 1rem !important;
+    }
+
+    .login-card-unified .stAlert p {
         color: #fca5a5 !important;
+        font-size: 0.875rem !important;
     }
 
-    .login-form-wrapper .stAlert [data-testid="stMarkdownContainer"] p {
-        color: #fca5a5 !important;
-    }
-
-    /* Warning styling */
-    .login-form-wrapper div[data-baseweb="notification"] {
-        background: rgba(234, 179, 8, 0.1) !important;
-        border: 1px solid rgba(234, 179, 8, 0.3) !important;
-        border-radius: 10px !important;
-    }
-
-    /* Footer text */
-    .login-footer {
-        text-align: center;
-        margin-top: 2rem;
-        padding-top: 1.5rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .login-footer-text {
-        color: #64748b;
-        font-size: 0.8rem;
-    }
-
-    .login-footer-brand {
-        color: #94a3b8;
-        font-size: 0.75rem;
-        margin-top: 0.5rem;
-    }
-
-    /* Service unavailable styling */
-    .service-unavailable {
-        background: rgba(239, 68, 68, 0.1);
-        border: 1px solid rgba(239, 68, 68, 0.2);
-        border-radius: 12px;
-        padding: 1rem 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .service-unavailable-text {
-        color: #fca5a5;
-        font-size: 0.9rem;
-        text-align: center;
-        margin: 0;
-    }
-
-    /* Session message styling */
-    .session-message {
-        background: rgba(234, 179, 8, 0.1);
-        border: 1px solid rgba(234, 179, 8, 0.2);
+    /* Session warning box */
+    .session-warn-box {
+        background: rgba(251, 191, 36, 0.08);
+        border: 1px solid rgba(251, 191, 36, 0.2);
         border-radius: 10px;
-        padding: 0.75rem 1rem;
-        margin-bottom: 1.5rem;
+        padding: 0.7rem 1rem;
+        margin-bottom: 1.25rem;
+        text-align: center;
     }
 
-    .session-message-text {
+    .session-warn-box p {
         color: #fcd34d;
         font-size: 0.85rem;
-        text-align: center;
         margin: 0;
     }
 
-    /* Input icon styling */
-    .input-icon {
-        position: absolute;
-        left: 1rem;
-        top: 50%;
-        transform: translateY(-50%);
+    /* Service error box */
+    .service-err-box {
+        background: rgba(239, 68, 68, 0.08);
+        border: 1px solid rgba(239, 68, 68, 0.15);
+        border-radius: 10px;
+        padding: 1rem;
+        margin: 1rem 0;
+        text-align: center;
+    }
+
+    .service-err-box p {
+        color: #fca5a5;
+        font-size: 0.875rem;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    /* ================================================
+       FOOTER - Inside Card
+       ================================================ */
+    .login-card-footer {
+        margin-top: 1.75rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.08);
+        text-align: center;
+    }
+
+    .login-secure-text {
         color: #64748b;
+        font-size: 0.75rem;
+        margin: 0 0 0.5rem 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4rem;
     }
 
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .login-card {
-            margin: 1rem;
-            padding: 2rem 1.5rem;
-        }
+    .login-secure-text svg {
+        width: 14px;
+        height: 14px;
+        fill: currentColor;
     }
 
-    /* Animation keyframes */
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    .login-brand-text {
+        color: #94a3b8;
+        font-size: 0.8rem;
+        margin: 0;
     }
 
-    .login-card {
-        animation: fadeInUp 0.4s ease-out;
+    .login-brand-text span {
+        color: #F97316;
+        font-weight: 600;
+    }
+
+    /* ================================================
+       RESPONSIVE
+       ================================================ */
+    @media (max-width: 600px) {
+        .login-card-unified {
+            margin: 0 1rem;
+            padding: 2rem 1.5rem 1.75rem 1.5rem;
+            border-radius: 20px;
+        }
+        .login-avatar-circle {
+            width: 78px;
+            height: 78px;
+        }
+        .login-avatar-circle svg {
+            width: 40px;
+            height: 40px;
+        }
+        .login-heading {
+            font-size: 1.4rem;
+        }
     }
     </style>
     """, unsafe_allow_html=True)
 
-    # Centered layout
-    col1, col2, col3 = st.columns([1, 1.2, 1])
+    # Layout columns
+    col1, col2, col3 = st.columns([1, 1.4, 1])
 
     with col2:
-        # Add top spacing
-        st.markdown("<div style='height: 2rem;'></div>", unsafe_allow_html=True)
+        # Top spacing
+        st.markdown("<div style='height: 4vh;'></div>", unsafe_allow_html=True)
 
-        # Login card HTML structure
+        # === START: Unified Card ===
         st.markdown("""
-        <div class="login-card">
-            <div class="login-avatar">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+        <div class="login-card-unified">
+            <div class="login-avatar-circle">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
                 </svg>
             </div>
-            <h1 class="login-title">Asset Management</h1>
-            <p class="login-subtitle">Sign in to your account</p>
-        </div>
+            <h1 class="login-heading">Asset Management</h1>
+            <p class="login-subheading">Sign in to your account</p>
         """, unsafe_allow_html=True)
 
-        # Service unavailable state
+        # Service unavailable
         if not auth_system_available:
             st.markdown("""
-            <div class="login-card" style="margin-top: -2.5rem; padding-top: 0;">
-                <div class="service-unavailable">
-                    <p class="service-unavailable-text">
-                        Authentication service is temporarily unavailable.<br>
-                        Please try again later.
-                    </p>
-                </div>
-                <div class="login-footer">
-                    <p class="login-footer-brand">Powered by nxtby.com</p>
-                </div>
+            <div class="service-err-box">
+                <p>Authentication service temporarily unavailable.<br/>Please try again later.</p>
+            </div>
+            <div class="login-card-footer">
+                <p class="login-brand-text">Powered by <span>nxtby.com</span></p>
+            </div>
             </div>
             """, unsafe_allow_html=True)
             return
 
-        # Session error message
+        # Session expiry warning
         if st.session_state.login_error:
             st.markdown(f"""
-            <div style="margin-top: -2rem; margin-bottom: 1rem;">
-                <div class="session-message">
-                    <p class="session-message-text">{st.session_state.login_error}</p>
-                </div>
+            <div class="session-warn-box">
+                <p>{st.session_state.login_error}</p>
             </div>
             """, unsafe_allow_html=True)
             st.session_state.login_error = None
 
-        # Form container with custom styling
-        st.markdown('<div class="login-form-wrapper">', unsafe_allow_html=True)
-
+        # Form
         with st.form("login_form", clear_on_submit=False):
-            # Username field
             username = st.text_input(
                 "Username",
                 placeholder="Enter your username",
@@ -726,7 +761,6 @@ def render_login_page():
                 disabled=st.session_state.login_processing
             )
 
-            # Password field
             password = st.text_input(
                 "Password",
                 type="password",
@@ -735,10 +769,6 @@ def render_login_page():
                 disabled=st.session_state.login_processing
             )
 
-            # Spacing before button
-            st.markdown("<div style='height: 0.5rem;'></div>", unsafe_allow_html=True)
-
-            # Submit button
             button_text = "Sign In" if not st.session_state.login_processing else "Signing in..."
             submit = st.form_submit_button(
                 button_text,
@@ -747,7 +777,6 @@ def render_login_page():
                 disabled=st.session_state.login_processing
             )
 
-            # Authentication logic
             if submit and not st.session_state.login_processing:
                 username_clean = username.strip() if username else ""
                 password_provided = bool(password)
@@ -758,10 +787,8 @@ def render_login_page():
                     st.error("Please enter a valid username")
                 else:
                     st.session_state.login_processing = True
-
                     try:
                         success, user_data, message = authenticate_user(username_clean, password)
-
                         if success and user_data:
                             login_user(user_data)
                             safe_rerun()
@@ -772,27 +799,25 @@ def render_login_page():
                         st.session_state.login_processing = False
                         st.error("An error occurred. Please try again.")
 
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        # Footer
+        # Footer inside card
         st.markdown("""
-        <div style="text-align: center; margin-top: 1.5rem;">
-            <p style="color: #64748b; font-size: 0.75rem; margin: 0;">
-                Secure login protected by encryption
-            </p>
-            <p style="color: #94a3b8; font-size: 0.8rem; margin-top: 0.75rem;">
-                Powered by <span style="color: #F97316;">nxtby.com</span>
-            </p>
+            <div class="login-card-footer">
+                <p class="login-secure-text">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+                    Secure encrypted connection
+                </p>
+                <p class="login-brand-text">Powered by <span>nxtby.com</span></p>
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
-        # Autofocus script
+        # Autofocus
         st.markdown("""
         <script>
         setTimeout(function() {
-            const input = window.parent.document.querySelector('input[aria-label="Username"]');
-            if (input) input.focus();
-        }, 100);
+            var inp = window.parent.document.querySelector('input[aria-label="Username"]');
+            if (inp) inp.focus();
+        }, 120);
         </script>
         """, unsafe_allow_html=True)
 
