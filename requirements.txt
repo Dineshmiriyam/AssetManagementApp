@@ -6,3 +6,4 @@ python-dotenv==1.0.0
 streamlit-plotly-events==0.0.6
 mysql-connector-python==9.5.0
 bcrypt==4.1.2
+openpyxl==3.1.2

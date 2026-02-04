@@ -5431,6 +5431,7 @@ MENU_GROUPS = {
         {"name": "Activity Log", "icon": "◉", "key": "activity_log"},  # All roles - view based on role
     ],
     "SYSTEM": [
+        {"name": "Import/Export", "icon": "↔", "key": "import_export", "roles": ["admin", "operations"]},  # Admin and Operations
         {"name": "User Management", "icon": "◉", "key": "users", "roles": ["admin"]},  # Admin only
         {"name": "Settings", "icon": "⚙", "key": "settings", "roles": ["admin"]},  # Admin only
     ],
@@ -9298,6 +9299,314 @@ elif page == "User Management":
                             st.error(f"Failed to create user: {msg}")
         else:
             st.warning("Authentication module not available.")
+
+# ============================================
+# IMPORT/EXPORT PAGE
+# ============================================
+elif page == "Import/Export":
+    # Route-level access control (defense in depth)
+    if not check_page_access("Import/Export", st.session_state.user_role):
+        render_access_denied(required_roles=["admin", "operations"])
+        st.stop()
+
+    # Import excel utilities
+    from database.excel_utils import (
+        export_assets_to_excel,
+        generate_import_template,
+        validate_import_data,
+        import_assets_from_dataframe,
+        EXCEL_COLUMNS
+    )
+
+    st.markdown('<p class="main-header">Import / Export Assets</p>', unsafe_allow_html=True)
+
+    # Create two main sections
+    export_section, import_section = st.tabs(["📤 Export Data", "📥 Import Data"])
+
+    # ========== EXPORT SECTION ==========
+    with export_section:
+        st.markdown("""
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #3b82f6;">
+            <div style="width: 4px; height: 20px; background: #3b82f6; border-radius: 2px;"></div>
+            <span style="font-size: 16px; font-weight: 600; color: #1f2937;">Export Assets to File</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.info("Download all assets data as Excel (.xlsx) or CSV file for reporting, backup, or offline analysis.")
+
+        # Fetch current assets data
+        if DATA_SOURCE == "mysql" and MYSQL_AVAILABLE:
+            export_assets = get_all_assets()
+        else:
+            export_assets = []
+
+        if export_assets:
+            export_df = pd.DataFrame(export_assets)
+
+            # Show summary
+            st.markdown(f"""
+            <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <span style="font-size: 20px;">📊</span>
+                    <span style="font-weight: 600; color: #166534;">Data Ready for Export</span>
+                </div>
+                <div style="color: #15803d;">
+                    <strong>{len(export_df)}</strong> assets • <strong>{len(export_df.columns)}</strong> columns
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Export buttons
+            export_col1, export_col2, export_col3 = st.columns([1, 1, 2])
+
+            with export_col1:
+                # Excel Export
+                try:
+                    excel_buffer = export_assets_to_excel(export_df)
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+                    st.download_button(
+                        label="📥 Download Excel",
+                        data=excel_buffer.getvalue(),
+                        file_name=f"assets_export_{timestamp}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True
+                    )
+                except Exception as e:
+                    st.error(f"Failed to generate Excel: {str(e)}")
+
+            with export_col2:
+                # CSV Export
+                csv_data = export_df.to_csv(index=False).encode('utf-8')
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+                st.download_button(
+                    label="📥 Download CSV",
+                    data=csv_data,
+                    file_name=f"assets_export_{timestamp}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+
+            # Preview section
+            st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
+            with st.expander("👁 Preview Export Data", expanded=False):
+                # Select columns to show
+                display_cols = ['serial_number', 'asset_type', 'brand', 'model', 'current_status', 'current_location']
+                available_cols = [c for c in display_cols if c in export_df.columns]
+                st.dataframe(export_df[available_cols].head(10), use_container_width=True)
+                st.caption(f"Showing first 10 of {len(export_df)} records")
+        else:
+            st.warning("No assets found in the database to export.")
+
+    # ========== IMPORT SECTION ==========
+    with import_section:
+        st.markdown("""
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #3b82f6;">
+            <div style="width: 4px; height: 20px; background: #3b82f6; border-radius: 2px;"></div>
+            <span style="font-size: 16px; font-weight: 600; color: #1f2937;">Import Assets from Excel</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.info("Upload an Excel file (.xlsx) to bulk import assets. Download the template first to ensure correct format.")
+
+        # Step 1: Download Template
+        st.markdown("""
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+            <div style="font-weight: 600; color: #1e293b; margin-bottom: 8px;">Step 1: Download Import Template</div>
+            <div style="color: #64748b; font-size: 14px;">The template includes column headers, data validation dropdowns, and a sample row.</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        template_col1, template_col2 = st.columns([1, 3])
+        with template_col1:
+            try:
+                template_buffer = generate_import_template()
+                st.download_button(
+                    label="📋 Download Template",
+                    data=template_buffer.getvalue(),
+                    file_name="asset_import_template.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+            except Exception as e:
+                st.error(f"Failed to generate template: {str(e)}")
+
+        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+
+        # Step 2: Upload File
+        st.markdown("""
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+            <div style="font-weight: 600; color: #1e293b; margin-bottom: 8px;">Step 2: Upload Filled Template</div>
+            <div style="color: #64748b; font-size: 14px;">Fill in the template with your asset data and upload it here.</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        uploaded_file = st.file_uploader(
+            "Choose Excel file",
+            type=['xlsx'],
+            help="Upload .xlsx file only. Maximum 10MB.",
+            key="import_file_uploader"
+        )
+
+        # Initialize session state for import
+        if 'import_validated' not in st.session_state:
+            st.session_state.import_validated = False
+        if 'import_df' not in st.session_state:
+            st.session_state.import_df = None
+        if 'import_errors' not in st.session_state:
+            st.session_state.import_errors = []
+        if 'import_warnings' not in st.session_state:
+            st.session_state.import_warnings = []
+
+        if uploaded_file is not None:
+            # Check file size (10MB limit)
+            if uploaded_file.size > 10 * 1024 * 1024:
+                st.error("File too large. Maximum size is 10MB.")
+            else:
+                try:
+                    # Read the uploaded file
+                    import_df = pd.read_excel(uploaded_file, sheet_name=0)
+
+                    st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+
+                    # Step 3: Preview & Validate
+                    st.markdown("""
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                        <div style="font-weight: 600; color: #1e293b; margin-bottom: 8px;">Step 3: Preview & Validate</div>
+                        <div style="color: #64748b; font-size: 14px;">Review your data and check for any validation errors.</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    # Show preview
+                    st.markdown("**Data Preview** (first 10 rows)")
+                    preview_cols = ['Serial Number', 'Asset Type', 'Brand', 'Model', 'Current Status']
+                    available_preview = [c for c in preview_cols if c in import_df.columns]
+                    if available_preview:
+                        st.dataframe(import_df[available_preview].head(10), use_container_width=True)
+                    else:
+                        st.dataframe(import_df.head(10), use_container_width=True)
+
+                    st.caption(f"Total rows: {len(import_df)}")
+
+                    # Validate button
+                    if st.button("🔍 Validate Data", use_container_width=True, type="primary"):
+                        with st.spinner("Validating data..."):
+                            is_valid, errors, warnings, valid_df = validate_import_data(import_df)
+                            st.session_state.import_errors = errors
+                            st.session_state.import_warnings = warnings
+                            st.session_state.import_df = valid_df
+                            st.session_state.import_validated = True
+                            st.rerun()
+
+                    # Show validation results
+                    if st.session_state.import_validated:
+                        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+
+                        errors = st.session_state.import_errors
+                        warnings = st.session_state.import_warnings
+                        valid_df = st.session_state.import_df
+
+                        # Validation summary
+                        valid_count = len(valid_df) if valid_df is not None else 0
+                        error_count = len(errors)
+                        warning_count = len(warnings)
+
+                        summary_col1, summary_col2, summary_col3 = st.columns(3)
+                        with summary_col1:
+                            st.markdown(f"""
+                            <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 12px; text-align: center;">
+                                <div style="font-size: 24px; font-weight: bold; color: #166534;">{valid_count}</div>
+                                <div style="color: #15803d; font-size: 14px;">Valid Records</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        with summary_col2:
+                            st.markdown(f"""
+                            <div style="background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 12px; text-align: center;">
+                                <div style="font-size: 24px; font-weight: bold; color: #991b1b;">{error_count}</div>
+                                <div style="color: #dc2626; font-size: 14px;">Errors</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        with summary_col3:
+                            st.markdown(f"""
+                            <div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 12px; text-align: center;">
+                                <div style="font-size: 24px; font-weight: bold; color: #92400e;">{warning_count}</div>
+                                <div style="color: #d97706; font-size: 14px;">Warnings</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                        # Show errors if any
+                        if errors:
+                            with st.expander("❌ Errors (must fix)", expanded=True):
+                                for err in errors[:20]:  # Show first 20 errors
+                                    row_info = f"Row {err['row']}" if err.get('row') else ""
+                                    field_info = f"[{err['field']}]" if err.get('field') else ""
+                                    st.markdown(f"• {row_info} {field_info}: {err.get('message', 'Unknown error')}")
+                                if len(errors) > 20:
+                                    st.caption(f"...and {len(errors) - 20} more errors")
+
+                        # Show warnings if any
+                        if warnings:
+                            with st.expander("⚠️ Warnings", expanded=False):
+                                for warn in warnings[:20]:
+                                    row_info = f"Row {warn['row']}" if warn.get('row') else ""
+                                    field_info = f"[{warn['field']}]" if warn.get('field') else ""
+                                    st.markdown(f"• {row_info} {field_info}: {warn.get('message', 'Warning')}")
+                                if len(warnings) > 20:
+                                    st.caption(f"...and {len(warnings) - 20} more warnings")
+
+                        # Step 4: Import
+                        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+                        st.markdown("""
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                            <div style="font-weight: 600; color: #1e293b; margin-bottom: 8px;">Step 4: Import Assets</div>
+                            <div style="color: #64748b; font-size: 14px;">Click the button below to import valid records into the database.</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        if valid_count > 0:
+                            if st.button(f"📥 Import {valid_count} Assets", use_container_width=True, type="primary"):
+                                with st.spinner(f"Importing {valid_count} assets..."):
+                                    result = import_assets_from_dataframe(valid_df)
+
+                                    if result['success'] > 0:
+                                        st.success(f"✅ Successfully imported {result['success']} assets!")
+
+                                        # Log activity
+                                        log_activity_event(
+                                            action_type="BULK_IMPORT",
+                                            category="data_management",
+                                            user_role=st.session_state.user_role,
+                                            description=f"Imported {result['success']} assets from Excel",
+                                            success=True
+                                        )
+
+                                    if result['failed'] > 0:
+                                        st.warning(f"⚠️ {result['failed']} assets failed to import.")
+                                        if result.get('errors'):
+                                            with st.expander("View import errors"):
+                                                for err in result['errors'][:10]:
+                                                    serial = err.get('serial', 'Unknown')
+                                                    error_msg = err.get('error', 'Unknown error')
+                                                    st.write(f"• {serial}: {error_msg}")
+
+                                    # Reset import state
+                                    st.session_state.import_validated = False
+                                    st.session_state.import_df = None
+                                    st.session_state.import_errors = []
+                                    st.session_state.import_warnings = []
+                        else:
+                            st.warning("No valid records to import. Please fix the errors above and re-validate.")
+
+                        # Reset validation button
+                        if st.button("🔄 Reset & Upload New File"):
+                            st.session_state.import_validated = False
+                            st.session_state.import_df = None
+                            st.session_state.import_errors = []
+                            st.session_state.import_warnings = []
+                            st.rerun()
+
+                except Exception as e:
+                    st.error(f"Failed to read file: {str(e)}")
+                    st.info("Please make sure you're uploading a valid Excel (.xlsx) file.")
 
 # ============================================
 # SETTINGS PAGE
