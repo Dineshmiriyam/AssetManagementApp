@@ -449,18 +449,13 @@ def render_login_page():
         margin: 0;
     }
 
-    /* ============ WHITE CARD - Unified card ============ */
+    /* ============ WHITE CARD - Single unified card ============ */
+    /* Header is just text inside the form, not separate */
     .login-card-header {
-        background: #ffffff;
-        border-radius: 8px 8px 0 0;
-        padding: 1.5rem 2rem 1rem 2rem;
-        margin-left: auto;
-        margin-right: auto;
-        max-width: 380px;
-        box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
         text-align: center;
-        margin-bottom: 0;
-        border-bottom: none;
+        padding: 0 0 1.25rem 0;
+        margin: 0;
+        background: transparent;
     }
 
     .login-card-header h2 {
@@ -471,24 +466,16 @@ def render_login_page():
         letter-spacing: 0.05em;
     }
 
-    /* Form as white card body - connected to header */
+    /* Form IS the white card */
     [data-testid="stForm"] {
         background: #ffffff !important;
         border: none !important;
-        border-radius: 0 0 8px 8px !important;
-        padding: 1rem 2rem 2rem 2rem !important;
+        border-radius: 8px !important;
+        padding: 2rem !important;
         margin-left: auto !important;
         margin-right: auto !important;
-        margin-top: 0 !important;
         max-width: 380px !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
-    }
-
-    /* Remove gap between header and form */
-    .login-card-header + div,
-    [data-testid="stVerticalBlock"] > div:has([data-testid="stForm"]) {
-        margin-top: 0 !important;
-        padding-top: 0 !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1) !important;
     }
 
     /* Hide "Press Enter to submit form" hint */
@@ -691,13 +678,6 @@ def render_login_page():
     col1, col2, col3 = st.columns([1, 2, 1])
 
     with col2:
-        # Card header
-        st.markdown("""
-        <div class="login-card-header">
-            <h2>SIGN IN</h2>
-        </div>
-        """, unsafe_allow_html=True)
-
         # Service unavailable state
         if not auth_system_available:
             st.markdown("""
@@ -719,8 +699,15 @@ def render_login_page():
             """, unsafe_allow_html=True)
             st.session_state.login_error = None
 
-        # Login form
+        # Login form - white card with SIGN IN header inside
         with st.form("login_form", clear_on_submit=False):
+            # SIGN IN header inside the form
+            st.markdown("""
+            <div class="login-card-header">
+                <h2>SIGN IN</h2>
+            </div>
+            """, unsafe_allow_html=True)
+
             username = st.text_input(
                 "Username",
                 placeholder="Enter your username",
