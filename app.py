@@ -215,7 +215,10 @@ if DATA_SOURCE == "mysql":
             change_password,
             deactivate_user,
             activate_user,
-            get_user_count
+            get_user_count,
+            invalidate_session,
+            validate_session,
+            is_database_available
         )
         MYSQL_AVAILABLE = True
         AUTH_AVAILABLE = True
@@ -266,34 +269,97 @@ def safe_rerun():
 # AUTHENTICATION & SESSION MANAGEMENT
 # ============================================
 SESSION_TIMEOUT_HOURS = 8  # Auto-logout after 8 hours
+INACTIVITY_TIMEOUT_MINUTES = 30  # Auto-logout after 30 minutes of inactivity
 
 def init_auth_session():
-    """Initialize authentication session state"""
-    if 'authenticated' not in st.session_state:
-        st.session_state.authenticated = False
-    if 'user_id' not in st.session_state:
-        st.session_state.user_id = None
-    if 'username' not in st.session_state:
-        st.session_state.username = None
-    if 'user_email' not in st.session_state:
-        st.session_state.user_email = None
-    if 'user_full_name' not in st.session_state:
-        st.session_state.user_full_name = None
-    if 'login_time' not in st.session_state:
-        st.session_state.login_time = None
+    """Initialize authentication session state with security defaults"""
+    defaults = {
+        'authenticated': False,
+        'user_id': None,
+        'username': None,
+        'user_email': None,
+        'user_full_name': None,
+        'user_role': None,
+        'login_time': None,
+        'last_activity': None,
+        'session_token': None,
+        'login_error': None,
+        'login_processing': False,
+    }
+    for key, default_value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = default_value
+
 
 def check_session_timeout():
-    """Check if session has timed out"""
-    if st.session_state.authenticated and st.session_state.login_time:
-        elapsed = datetime.now() - st.session_state.login_time
+    """
+    Check if session has timed out (absolute or inactivity).
+    Returns True if session was invalidated.
+    """
+    if not st.session_state.authenticated:
+        return False
+
+    now = datetime.now()
+
+    # Check absolute session timeout (8 hours)
+    if st.session_state.login_time:
+        elapsed = now - st.session_state.login_time
         if elapsed.total_seconds() > (SESSION_TIMEOUT_HOURS * 3600):
-            logout_user()
-            st.warning("Session expired. Please login again.")
+            logout_user(reason="session_expired")
             return True
+
+    # Check inactivity timeout (30 minutes)
+    if st.session_state.last_activity:
+        inactive = now - st.session_state.last_activity
+        if inactive.total_seconds() > (INACTIVITY_TIMEOUT_MINUTES * 60):
+            logout_user(reason="inactivity")
+            return True
+
+    # Update last activity timestamp
+    st.session_state.last_activity = now
     return False
 
+
+def validate_current_session():
+    """
+    Validate the current session against server-side state.
+    Prevents session manipulation and ensures session is still valid.
+    """
+    if not st.session_state.authenticated:
+        return False
+
+    if not AUTH_AVAILABLE:
+        return True  # Skip validation if auth module unavailable
+
+    user_id = st.session_state.user_id
+    session_token = st.session_state.session_token
+
+    if not user_id or not session_token:
+        logout_user(reason="invalid_session")
+        return False
+
+    # Validate session token against server
+    try:
+        is_valid, user_data = validate_session(user_id, session_token)
+        if not is_valid:
+            logout_user(reason="session_invalidated")
+            return False
+
+        # Update role in case it was changed by admin
+        if user_data:
+            st.session_state.user_role = user_data.get('role', st.session_state.user_role)
+
+        return True
+    except Exception:
+        # Don't crash on validation errors, just continue
+        return True
+
+
 def login_user(user_data: dict):
-    """Set session state after successful login"""
+    """
+    Set session state after successful login.
+    Stores session token for server-side validation.
+    """
     st.session_state.authenticated = True
     st.session_state.user_id = user_data['id']
     st.session_state.username = user_data['username']
@@ -301,9 +367,24 @@ def login_user(user_data: dict):
     st.session_state.user_full_name = user_data.get('full_name', user_data['username'])
     st.session_state.user_role = user_data.get('role', 'operations')
     st.session_state.login_time = datetime.now()
+    st.session_state.last_activity = datetime.now()
+    st.session_state.session_token = user_data.get('session_token')
+    st.session_state.login_error = None
+    st.session_state.login_processing = False
 
-def logout_user():
-    """Clear session state on logout"""
+
+def logout_user(reason: str = None):
+    """
+    Clear session state on logout and invalidate server-side session.
+    """
+    # Invalidate server-side session
+    if AUTH_AVAILABLE and st.session_state.user_id:
+        try:
+            invalidate_session(st.session_state.user_id)
+        except Exception:
+            pass  # Don't fail logout if invalidation fails
+
+    # Clear all session state
     st.session_state.authenticated = False
     st.session_state.user_id = None
     st.session_state.username = None
@@ -311,9 +392,37 @@ def logout_user():
     st.session_state.user_full_name = None
     st.session_state.user_role = None
     st.session_state.login_time = None
+    st.session_state.last_activity = None
+    st.session_state.session_token = None
+    st.session_state.login_processing = False
+
+    # Set appropriate message based on reason
+    if reason == "session_expired":
+        st.session_state.login_error = "Your session has expired. Please sign in again."
+    elif reason == "inactivity":
+        st.session_state.login_error = "You were logged out due to inactivity."
+    elif reason == "session_invalidated":
+        st.session_state.login_error = "Your session is no longer valid. Please sign in again."
+
 
 def render_login_page():
-    """Render the login page"""
+    """
+    Render the secure login page.
+    Security features:
+    - Rate limiting feedback
+    - Generic error messages
+    - Loading state during authentication
+    - Input validation
+    - No password hints
+    """
+    # Check if auth system is available
+    auth_system_available = AUTH_AVAILABLE
+    if auth_system_available:
+        try:
+            auth_system_available = is_database_available()
+        except Exception:
+            auth_system_available = False
+
     # Center the login form
     col1, col2, col3 = st.columns([1, 2, 1])
 
@@ -325,28 +434,102 @@ def render_login_page():
         </div>
         """, unsafe_allow_html=True)
 
+        # Show service unavailable message if DB is down
+        if not auth_system_available:
+            st.error("Authentication service is temporarily unavailable. Please try again later.")
+            st.markdown("""
+            <div style="text-align: center; margin-top: 2rem; color: #9CA3AF; font-size: 0.85rem;">
+                <p>Powered by nxtby.com</p>
+            </div>
+            """, unsafe_allow_html=True)
+            return
+
+        # Show session expiry or error messages
+        if st.session_state.login_error:
+            st.warning(st.session_state.login_error)
+            st.session_state.login_error = None
+
+        # CSS for input validation feedback
+        st.markdown("""
+        <style>
+        .stTextInput > div > div > input:focus {
+            border-color: #F97316 !important;
+            box-shadow: 0 0 0 1px #F97316 !important;
+        }
+        .login-form-container {
+            background: #ffffff;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
         # Login form
         with st.form("login_form", clear_on_submit=False):
-            username = st.text_input("Username", placeholder="Enter your username")
-            password = st.text_input("Password", type="password", placeholder="Enter your password")
+            # Username field with autofocus via JavaScript
+            username = st.text_input(
+                "Username",
+                placeholder="Enter your username",
+                key="login_username",
+                disabled=st.session_state.login_processing
+            )
+
+            # Password field
+            password = st.text_input(
+                "Password",
+                type="password",
+                placeholder="Enter your password",
+                key="login_password",
+                disabled=st.session_state.login_processing
+            )
 
             col_btn1, col_btn2, col_btn3 = st.columns([1, 2, 1])
             with col_btn2:
-                submit = st.form_submit_button("Login", use_container_width=True, type="primary")
+                # Disable button while processing
+                submit = st.form_submit_button(
+                    "Sign In" if not st.session_state.login_processing else "Signing in...",
+                    use_container_width=True,
+                    type="primary",
+                    disabled=st.session_state.login_processing
+                )
 
-            if submit:
-                if not username or not password:
-                    st.error("Please enter both username and password")
-                elif AUTH_AVAILABLE:
-                    success, user_data, message = authenticate_user(username, password)
-                    if success:
-                        login_user(user_data)
-                        st.success("Login successful!")
-                        safe_rerun()
-                    else:
-                        st.error(message)
+            if submit and not st.session_state.login_processing:
+                # Input validation
+                username_clean = username.strip() if username else ""
+                password_provided = bool(password)
+
+                if not username_clean or not password_provided:
+                    st.error("Please enter your credentials")
+                elif len(username_clean) < 2:
+                    st.error("Please enter a valid username")
                 else:
-                    st.error("Authentication system not available")
+                    # Set processing state
+                    st.session_state.login_processing = True
+
+                    # Perform authentication
+                    try:
+                        success, user_data, message = authenticate_user(username_clean, password)
+
+                        if success and user_data:
+                            # Login successful
+                            login_user(user_data)
+                            safe_rerun()
+                        else:
+                            # Login failed - show generic message
+                            st.session_state.login_processing = False
+                            st.error(message)
+                    except Exception as e:
+                        st.session_state.login_processing = False
+                        st.error("An error occurred. Please try again.")
+
+        # Autofocus username field
+        st.markdown("""
+        <script>
+        const usernameInput = window.parent.document.querySelector('input[aria-label="Username"]');
+        if (usernameInput) usernameInput.focus();
+        </script>
+        """, unsafe_allow_html=True)
 
         st.markdown("""
         <div style="text-align: center; margin-top: 2rem; color: #9CA3AF; font-size: 0.85rem;">
@@ -5042,12 +5225,17 @@ def get_visible_menu_items(role):
 # ============================================
 # AUTHENTICATION CHECK
 # ============================================
-# Initialize auth session
+# Initialize auth session state
 init_auth_session()
 
-# Check session timeout
+# Perform security checks for authenticated sessions
 if st.session_state.authenticated:
-    check_session_timeout()
+    # Check for session timeout (absolute and inactivity)
+    session_timed_out = check_session_timeout()
+
+    # If not timed out, validate session against server
+    if not session_timed_out:
+        validate_current_session()
 
 # Show login page if not authenticated
 if not st.session_state.authenticated:
@@ -5113,18 +5301,18 @@ st.sidebar.markdown(f"""
 """, unsafe_allow_html=True)
 
 # Logout button
-if st.sidebar.button("Logout", key="logout_btn", use_container_width=True):
-    # Log logout activity
+if st.sidebar.button("Sign Out", key="logout_btn", use_container_width=True):
+    # Log logout activity before clearing session
     log_activity_event(
         action_type="USER_LOGOUT",
         category="authentication",
         user_role=st.session_state.user_role,
-        description=f"User logged out: {st.session_state.username}",
+        description=f"User signed out: {st.session_state.username}",
         success=True
     )
+    # Invalidate session (server-side) and clear state
     logout_user()
     safe_rerun()
-    safe_rerun()  # Force immediate re-render
 
 # Show role description
 role_config = USER_ROLES[st.session_state.user_role]
