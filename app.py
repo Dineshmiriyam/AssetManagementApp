@@ -492,51 +492,48 @@ def render_login_page():
         overflow: hidden !important;
     }
 
-    /* Input Fields - Single clean border ONLY */
+    /* Input Fields - Full rectangular border like reference */
     .stTextInput {
-        margin-bottom: 1rem !important;
+        margin-bottom: 1.25rem !important;
     }
 
     .stTextInput > label {
         color: #374151 !important;
         font-size: 0.875rem !important;
-        font-weight: 500 !important;
+        font-weight: 600 !important;
         margin-bottom: 0.5rem !important;
     }
 
-    /* Remove ALL default borders and shadows */
-    .stTextInput > div,
+    /* Input container - FULL BORDER */
     .stTextInput > div > div,
-    .stTextInput > div > div > div,
-    .stTextInput [data-baseweb="input"],
-    .stTextInput [data-baseweb="base-input"] {
-        border: none !important;
-        outline: none !important;
-        box-shadow: none !important;
-        background: transparent !important;
-    }
-
-    /* Apply single border to the container */
-    .stTextInput > div > div {
+    .stTextInput [data-baseweb="base-input"],
+    .stTextInput [data-baseweb="input"] {
         background: #ffffff !important;
         border: 1px solid #d1d5db !important;
+        border-top: 1px solid #d1d5db !important;
+        border-right: 1px solid #d1d5db !important;
+        border-bottom: 1px solid #d1d5db !important;
+        border-left: 1px solid #d1d5db !important;
         border-radius: 6px !important;
-        overflow: hidden !important;
+        box-shadow: none !important;
+        outline: none !important;
     }
 
-    .stTextInput > div > div:hover {
+    .stTextInput > div > div:hover,
+    .stTextInput [data-baseweb="base-input"]:hover {
         border: 1px solid #9ca3af !important;
+        border-color: #9ca3af !important;
     }
 
-    .stTextInput > div > div:focus-within {
+    .stTextInput > div > div:focus-within,
+    .stTextInput [data-baseweb="base-input"]:focus-within {
         border: 1px solid #f97316 !important;
+        border-color: #f97316 !important;
+        box-shadow: none !important;
     }
 
-    /* Input element itself - NO borders */
-    .stTextInput input,
-    .stTextInput input:focus,
-    .stTextInput input:active,
-    .stTextInput input:hover {
+    /* Input element */
+    .stTextInput input {
         color: #111827 !important;
         font-size: 0.95rem !important;
         padding: 0.75rem 1rem !important;
@@ -544,7 +541,6 @@ def render_login_page():
         border: none !important;
         outline: none !important;
         box-shadow: none !important;
-        -webkit-appearance: none !important;
     }
 
     .stTextInput input::placeholder {
@@ -556,38 +552,39 @@ def render_login_page():
         color: #6b7280 !important;
         border: none !important;
         background: transparent !important;
-        outline: none !important;
     }
 
     .stTextInput button:hover {
         color: #f97316 !important;
     }
 
-    .stTextInput button:focus {
-        outline: none !important;
-        box-shadow: none !important;
-    }
-
-    /* Submit Button - Orange like reference */
-    .stFormSubmitButton > button {
-        background: linear-gradient(180deg, #f97316 0%, #ea580c 100%) !important;
+    /* Submit Button - Orange like nxtby.com */
+    .stFormSubmitButton > button,
+    .stFormSubmitButton > button:focus,
+    .stFormSubmitButton > button:active,
+    [data-testid="stForm"] .stFormSubmitButton > button,
+    [data-testid="stFormSubmitButton"] > button {
+        background: #f97316 !important;
+        background-color: #f97316 !important;
         color: #ffffff !important;
         border: none !important;
         border-radius: 6px !important;
-        padding: 0.75rem 1.5rem !important;
-        font-size: 0.95rem !important;
+        padding: 0.875rem 1.5rem !important;
+        font-size: 1rem !important;
         font-weight: 600 !important;
-        margin-top: 0.5rem !important;
-        box-shadow: 0 2px 4px rgba(249, 115, 22, 0.3) !important;
+        margin-top: 1rem !important;
+        box-shadow: none !important;
     }
 
-    .stFormSubmitButton > button:hover {
-        background: linear-gradient(180deg, #ea580c 0%, #dc2626 100%) !important;
+    .stFormSubmitButton > button:hover,
+    [data-testid="stFormSubmitButton"] > button:hover {
+        background: #ea580c !important;
+        background-color: #ea580c !important;
     }
 
     .stFormSubmitButton > button:disabled {
         background: #d1d5db !important;
-        box-shadow: none !important;
+        background-color: #d1d5db !important;
     }
 
     /* Alerts */
