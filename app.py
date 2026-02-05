@@ -2666,6 +2666,29 @@ st.markdown("""
         box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1) !important;
     }
 
+    /* ===== MULTISELECT DROPDOWN ===== */
+    .stMultiSelect > div > div {
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 6px !important;
+        color: #1e293b !important;
+        min-height: 42px !important;
+    }
+
+    .stMultiSelect > div > div:hover {
+        border-color: #cbd5e1 !important;
+    }
+
+    .stMultiSelect > div > div:focus-within {
+        border-color: #f97316 !important;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1) !important;
+    }
+
+    /* Multiselect placeholder text */
+    .stMultiSelect [data-baseweb="select"] > div:first-child {
+        color: #64748b !important;
+    }
+
     /* ===== PLOTLY CHARTS ===== */
     .stPlotlyChart {
         background-color: transparent;
