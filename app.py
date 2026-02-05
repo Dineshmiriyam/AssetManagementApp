@@ -9318,10 +9318,17 @@ elif page == "Import/Export":
         EXCEL_COLUMNS
     )
 
+    # Import QR code utilities
+    from database.qr_utils import (
+        generate_asset_qr,
+        generate_asset_label_image,
+        generate_bulk_qr_pdf
+    )
+
     st.markdown('<p class="main-header">Import / Export Assets</p>', unsafe_allow_html=True)
 
-    # Create two main sections
-    export_section, import_section = st.tabs(["📤 Export Data", "📥 Import Data"])
+    # Create three main sections
+    export_section, import_section, qr_section = st.tabs(["📤 Export Data", "📥 Import Data", "📱 QR Codes"])
 
     # ========== EXPORT SECTION ==========
     with export_section:
@@ -9623,6 +9630,202 @@ elif page == "Import/Export":
                 except Exception as e:
                     st.error(f"Failed to read file: {str(e)}")
                     st.info("Please make sure you're uploading a valid Excel (.xlsx) file.")
+
+    # ========== QR CODES SECTION ==========
+    with qr_section:
+        # Section header (matching other pages)
+        st.markdown("""
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #3b82f6;">
+            <div style="width: 4px; height: 20px; background: #3b82f6; border-radius: 2px;"></div>
+            <span style="font-size: 16px; font-weight: 600; color: #1f2937;">Generate QR Codes</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.info("Generate QR codes for assets. QR codes contain the serial number for easy scanning and identification.")
+
+        # Fetch assets for QR generation
+        if DATA_SOURCE == "mysql" and MYSQL_AVAILABLE:
+            qr_assets = mysql_get_assets()
+        else:
+            qr_assets = []
+
+        qr_df = pd.DataFrame(qr_assets) if qr_assets is not None else pd.DataFrame()
+
+        if len(qr_df) > 0:
+            # ===== SINGLE ASSET QR =====
+            st.markdown("""
+            <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb;">
+                Single Asset QR Code
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Create asset options for dropdown
+            asset_options = []
+            for _, row in qr_df.iterrows():
+                serial = row.get('Serial Number', '')
+                asset_type = row.get('Asset Type', '')
+                brand = row.get('Brand', '')
+                model = row.get('Model', '')
+                label = f"{serial} - {asset_type} - {brand} {model}"
+                asset_options.append(label)
+
+            selected_asset_label = st.selectbox(
+                "Select Asset",
+                options=asset_options,
+                key="qr_asset_select"
+            )
+
+            if selected_asset_label:
+                # Get the selected asset data
+                selected_idx = asset_options.index(selected_asset_label)
+                selected_asset = qr_df.iloc[selected_idx].to_dict()
+
+                serial = selected_asset.get('Serial Number', '')
+                asset_type = selected_asset.get('Asset Type', '')
+                brand = selected_asset.get('Brand', '')
+                model = selected_asset.get('Model', '')
+                status = selected_asset.get('Current Status', '')
+
+                # Display QR code and info side by side
+                qr_col1, qr_col2 = st.columns([1, 2])
+
+                with qr_col1:
+                    # Generate and display QR code
+                    qr_buffer = generate_asset_qr(serial, size=200)
+                    st.image(qr_buffer, caption="Scan to get Serial Number", width=200)
+
+                with qr_col2:
+                    st.markdown(f"""
+                    <div style="padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                        <div style="margin-bottom: 12px;">
+                            <span style="color: #6b7280; font-size: 12px;">SERIAL NUMBER</span><br>
+                            <span style="font-size: 18px; font-weight: 700; color: #111827;">{serial}</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <span style="color: #6b7280; font-size: 12px;">TYPE</span><br>
+                            <span style="font-size: 14px; color: #374151;">{asset_type}</span>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <span style="color: #6b7280; font-size: 12px;">BRAND / MODEL</span><br>
+                            <span style="font-size: 14px; color: #374151;">{brand} {model}</span>
+                        </div>
+                        <div>
+                            <span style="color: #6b7280; font-size: 12px;">STATUS</span><br>
+                            <span style="font-size: 14px; color: #374151;">{status}</span>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                # Download buttons
+                st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+                dl_col1, dl_col2, dl_col3 = st.columns([1, 1, 2])
+
+                with dl_col1:
+                    qr_png = generate_asset_qr(serial, size=300)
+                    st.download_button(
+                        label="📥 Download QR (PNG)",
+                        data=qr_png.getvalue(),
+                        file_name=f"qr_{serial}.png",
+                        mime="image/png",
+                        use_container_width=True
+                    )
+
+                with dl_col2:
+                    qr_label = generate_asset_label_image(selected_asset)
+                    st.download_button(
+                        label="📥 Download with Label",
+                        data=qr_label.getvalue(),
+                        file_name=f"qr_label_{serial}.png",
+                        mime="image/png",
+                        use_container_width=True
+                    )
+
+            # ===== BULK QR GENERATION =====
+            st.markdown("<div style='height: 32px;'></div>", unsafe_allow_html=True)
+            st.markdown("""
+            <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb;">
+                Bulk QR Labels (PDF)
+            </div>
+            """, unsafe_allow_html=True)
+            st.caption("Generate a printable PDF with QR code labels for multiple assets.")
+
+            # Filters
+            filter_col1, filter_col2 = st.columns(2)
+
+            with filter_col1:
+                status_options = ["All"] + sorted(qr_df['Current Status'].dropna().unique().tolist())
+                selected_status = st.selectbox("Filter by Status", options=status_options, key="qr_status_filter")
+
+            with filter_col2:
+                brand_options = ["All"] + sorted(qr_df['Brand'].dropna().unique().tolist())
+                selected_brand = st.selectbox("Filter by Brand", options=brand_options, key="qr_brand_filter")
+
+            # Apply filters
+            filtered_qr_df = qr_df.copy()
+            if selected_status != "All":
+                filtered_qr_df = filtered_qr_df[filtered_qr_df['Current Status'] == selected_status]
+            if selected_brand != "All":
+                filtered_qr_df = filtered_qr_df[filtered_qr_df['Brand'] == selected_brand]
+
+            # Show count
+            st.markdown(f"**{len(filtered_qr_df)}** assets match the filters")
+
+            # Select all checkbox
+            select_all = st.checkbox(f"Select All ({len(filtered_qr_df)} assets)", key="qr_select_all")
+
+            # Multi-select for assets
+            if select_all:
+                default_selection = filtered_qr_df['Serial Number'].tolist()
+            else:
+                default_selection = []
+
+            # Create options with more info
+            bulk_options = []
+            for _, row in filtered_qr_df.iterrows():
+                serial = row.get('Serial Number', '')
+                asset_type = row.get('Asset Type', '')
+                brand = row.get('Brand', '')
+                bulk_options.append(f"{serial} - {asset_type} - {brand}")
+
+            selected_bulk = st.multiselect(
+                "Select Assets for PDF",
+                options=bulk_options,
+                default=[f"{s} - {filtered_qr_df[filtered_qr_df['Serial Number']==s].iloc[0]['Asset Type']} - {filtered_qr_df[filtered_qr_df['Serial Number']==s].iloc[0]['Brand']}" for s in default_selection] if select_all else [],
+                key="qr_bulk_select"
+            )
+
+            # Labels per row option
+            st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+            labels_per_row = st.selectbox("Labels per Row", options=[2, 3, 4], index=1, key="qr_labels_per_row")
+
+            # Generate PDF button
+            if selected_bulk:
+                # Get selected asset data
+                selected_serials = [opt.split(" - ")[0] for opt in selected_bulk]
+                selected_assets_data = filtered_qr_df[filtered_qr_df['Serial Number'].isin(selected_serials)].to_dict('records')
+
+                if st.button(f"📄 Generate PDF ({len(selected_bulk)} labels)", type="primary", use_container_width=True):
+                    with st.spinner("Generating PDF..."):
+                        pdf_buffer = generate_bulk_qr_pdf(selected_assets_data, labels_per_row=labels_per_row)
+                        st.session_state.qr_pdf_buffer = pdf_buffer
+                        st.session_state.qr_pdf_count = len(selected_bulk)
+                        st.success(f"PDF generated with {len(selected_bulk)} QR labels!")
+
+                # Show download button if PDF was generated
+                if 'qr_pdf_buffer' in st.session_state and st.session_state.qr_pdf_buffer:
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+                    st.download_button(
+                        label=f"📥 Download PDF ({st.session_state.qr_pdf_count} labels)",
+                        data=st.session_state.qr_pdf_buffer.getvalue(),
+                        file_name=f"qr_labels_{timestamp}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+            else:
+                st.info("Select assets above to generate PDF labels.")
+
+        else:
+            st.warning("No assets found in the database.")
 
 # ============================================
 # SETTINGS PAGE
