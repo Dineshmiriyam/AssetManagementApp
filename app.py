@@ -4377,16 +4377,16 @@ def render_pagination_controls(key: str, state: dict, total_records: int):
         # Page navigation
         nav_cols = st.columns(4)
         with nav_cols[0]:
-            if st.button("«", key=f"first_{key}", disabled=state["page"] == 0):
+            if st.button("First", key=f"first_{key}", disabled=state["page"] == 0):
                 state["page"] = 0
         with nav_cols[1]:
-            if st.button("‹", key=f"prev_{key}", disabled=state["page"] == 0):
+            if st.button("Prev", key=f"prev_{key}", disabled=state["page"] == 0):
                 state["page"] = max(0, state["page"] - 1)
         with nav_cols[2]:
-            if st.button("›", key=f"next_{key}", disabled=state["page"] >= state["total_pages"] - 1):
+            if st.button("Next", key=f"next_{key}", disabled=state["page"] >= state["total_pages"] - 1):
                 state["page"] = min(state["total_pages"] - 1, state["page"] + 1)
         with nav_cols[3]:
-            if st.button("»", key=f"last_{key}", disabled=state["page"] >= state["total_pages"] - 1):
+            if st.button("Last", key=f"last_{key}", disabled=state["page"] >= state["total_pages"] - 1):
                 state["page"] = state["total_pages"] - 1
 
     with col4:
