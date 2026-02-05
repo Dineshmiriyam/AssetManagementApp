@@ -9391,10 +9391,14 @@ elif page == "Import/Export":
             # Preview section
             st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
             with st.expander("👁 Preview Export Data", expanded=False):
-                # Select columns to show
-                display_cols = ['serial_number', 'asset_type', 'brand', 'model', 'current_status', 'current_location']
+                # Select columns to show (using actual DB column names with display format)
+                display_cols = ['Serial Number', 'Asset Type', 'Brand', 'Model', 'Current Status', 'Current Location']
                 available_cols = [c for c in display_cols if c in export_df.columns]
-                st.dataframe(export_df[available_cols].head(10), use_container_width=True)
+                if available_cols:
+                    st.dataframe(export_df[available_cols].head(10), use_container_width=True)
+                else:
+                    # Fallback: show first 6 columns if column names don't match
+                    st.dataframe(export_df.iloc[:, :6].head(10), use_container_width=True)
                 st.caption(f"Showing first 10 of {len(export_df)} records")
         else:
             st.warning("No assets found in the database to export.")
