@@ -9295,6 +9295,8 @@ elif page == "User Management":
                                 description=f"New user created: {new_username} (role: {new_role})",
                                 success=True
                             )
+                            # Refresh page to show new user in list
+                            safe_rerun()
                         else:
                             st.error(f"Failed to create user: {msg}")
         else:
