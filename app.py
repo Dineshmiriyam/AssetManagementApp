@@ -4351,7 +4351,7 @@ def paginate_dataframe(df: pd.DataFrame, key: str, show_controls: bool = True) -
 
 def render_pagination_controls(key: str, state: dict, total_records: int):
     """Render pagination controls matching existing UI style."""
-    col1, col2, col3, col4 = st.columns([1, 2, 2, 1])
+    col1, col2, col3 = st.columns([1, 3, 1])
 
     with col1:
         # Page size selector
@@ -4374,22 +4374,6 @@ def render_pagination_controls(key: str, state: dict, total_records: int):
         st.markdown(f"<div style='text-align: center; padding: 8px; color: #64748b; font-size: 0.85rem;'>Showing {start}-{end} of {total_records}</div>", unsafe_allow_html=True)
 
     with col3:
-        # Page navigation
-        nav_cols = st.columns(4)
-        with nav_cols[0]:
-            if st.button("First", key=f"first_{key}", disabled=state["page"] == 0):
-                state["page"] = 0
-        with nav_cols[1]:
-            if st.button("Prev", key=f"prev_{key}", disabled=state["page"] == 0):
-                state["page"] = max(0, state["page"] - 1)
-        with nav_cols[2]:
-            if st.button("Next", key=f"next_{key}", disabled=state["page"] >= state["total_pages"] - 1):
-                state["page"] = min(state["total_pages"] - 1, state["page"] + 1)
-        with nav_cols[3]:
-            if st.button("Last", key=f"last_{key}", disabled=state["page"] >= state["total_pages"] - 1):
-                state["page"] = state["total_pages"] - 1
-
-    with col4:
         # Page indicator
         st.markdown(f"<div style='text-align: right; padding: 8px; color: #64748b; font-size: 0.85rem;'>Page {state['page'] + 1}/{state['total_pages']}</div>", unsafe_allow_html=True)
 
