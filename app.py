@@ -9320,19 +9320,33 @@ elif page == "Import/Export":
 
     st.markdown('<p class="main-header">Import / Export Assets</p>', unsafe_allow_html=True)
 
-    # Create two main sections
+    # Create two main sections with custom styling
     export_section, import_section = st.tabs(["📤 Export Data", "📥 Import Data"])
 
     # ========== EXPORT SECTION ==========
     with export_section:
+        # Section header with orange theme
         st.markdown("""
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #3b82f6;">
-            <div style="width: 4px; height: 20px; background: #3b82f6; border-radius: 2px;"></div>
-            <span style="font-size: 16px; font-weight: 600; color: #1f2937;">Export Assets to File</span>
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 3px solid #f97316;">
+            <div style="background: linear-gradient(135deg, #f97316, #ea580c); width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                <span style="font-size: 20px;">📤</span>
+            </div>
+            <div>
+                <span style="font-size: 18px; font-weight: 700; color: #1f2937;">Export Assets to File</span>
+                <p style="margin: 0; font-size: 13px; color: #6b7280;">Download your asset data for reporting or backup</p>
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
-        st.info("Download all assets data as Excel (.xlsx) or CSV file for reporting, backup, or offline analysis.")
+        # Info box with orange theme
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #fff7ed, #ffedd5); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 18px;">💡</span>
+                <span style="color: #9a3412; font-size: 14px;">Download all assets data as Excel (.xlsx) or CSV file for reporting, backup, or offline analysis.</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         # Fetch current assets data
         if DATA_SOURCE == "mysql" and MYSQL_AVAILABLE:
@@ -9345,20 +9359,34 @@ elif page == "Import/Export":
 
         if len(export_df) > 0:
 
-            # Show summary
+            # Show summary with orange theme
             st.markdown(f"""
-            <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                    <span style="font-size: 20px;">📊</span>
-                    <span style="font-weight: 600; color: #166534;">Data Ready for Export</span>
+            <div style="background: linear-gradient(135deg, #fff7ed, #fed7aa); border: 2px solid #fb923c; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                    <div style="background: #f97316; width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        <span style="font-size: 18px;">✅</span>
+                    </div>
+                    <span style="font-weight: 700; color: #9a3412; font-size: 16px;">Data Ready for Export</span>
                 </div>
-                <div style="color: #15803d;">
-                    <strong>{len(export_df)}</strong> assets • <strong>{len(export_df.columns)}</strong> columns
+                <div style="display: flex; gap: 24px; padding-left: 48px;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 28px; font-weight: 700; color: #ea580c;">{len(export_df)}</div>
+                        <div style="font-size: 12px; color: #c2410c; text-transform: uppercase; letter-spacing: 0.5px;">Assets</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-size: 28px; font-weight: 700; color: #ea580c;">{len(export_df.columns)}</div>
+                        <div style="font-size: 12px; color: #c2410c; text-transform: uppercase; letter-spacing: 0.5px;">Columns</div>
+                    </div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
 
-            # Export buttons
+            # Export buttons with better layout
+            st.markdown("""
+            <div style="margin-bottom: 8px;">
+                <span style="font-size: 14px; font-weight: 600; color: #374151;">Download Format</span>
+            </div>
+            """, unsafe_allow_html=True)
             export_col1, export_col2, export_col3 = st.columns([1, 1, 2])
 
             with export_col1:
@@ -9422,20 +9450,37 @@ elif page == "Import/Export":
 
     # ========== IMPORT SECTION ==========
     with import_section:
+        # Section header with orange theme
         st.markdown("""
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #3b82f6;">
-            <div style="width: 4px; height: 20px; background: #3b82f6; border-radius: 2px;"></div>
-            <span style="font-size: 16px; font-weight: 600; color: #1f2937;">Import Assets from Excel</span>
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 3px solid #f97316;">
+            <div style="background: linear-gradient(135deg, #f97316, #ea580c); width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                <span style="font-size: 20px;">📥</span>
+            </div>
+            <div>
+                <span style="font-size: 18px; font-weight: 700; color: #1f2937;">Import Assets from Excel</span>
+                <p style="margin: 0; font-size: 13px; color: #6b7280;">Bulk upload assets using Excel templates</p>
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
-        st.info("Upload an Excel file (.xlsx) to bulk import assets. Download the template first to ensure correct format.")
+        # Info box with orange theme
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #fff7ed, #ffedd5); border-left: 4px solid #f97316; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 18px;">💡</span>
+                <span style="color: #9a3412; font-size: 14px;">Upload an Excel file (.xlsx) to bulk import assets. Download the template first to ensure correct format.</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         # Step 1: Download Template
         st.markdown("""
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-            <div style="font-weight: 600; color: #1e293b; margin-bottom: 8px;">Step 1: Download Import Template</div>
-            <div style="color: #64748b; font-size: 14px;">The template includes column headers, data validation dropdowns, and a sample row.</div>
+        <div style="background: #ffffff; border: 2px solid #fed7aa; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(249, 115, 22, 0.1);">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <div style="background: linear-gradient(135deg, #f97316, #ea580c); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 14px;">1</div>
+                <span style="font-weight: 700; color: #1f2937; font-size: 15px;">Download Import Template</span>
+            </div>
+            <div style="color: #6b7280; font-size: 14px; padding-left: 44px;">The template includes column headers, data validation dropdowns, and a sample row.</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -9453,13 +9498,16 @@ elif page == "Import/Export":
             except Exception as e:
                 st.error(f"Failed to generate template: {str(e)}")
 
-        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 
         # Step 2: Upload File
         st.markdown("""
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-            <div style="font-weight: 600; color: #1e293b; margin-bottom: 8px;">Step 2: Upload Filled Template</div>
-            <div style="color: #64748b; font-size: 14px;">Fill in the template with your asset data and upload it here.</div>
+        <div style="background: #ffffff; border: 2px solid #fed7aa; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(249, 115, 22, 0.1);">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <div style="background: linear-gradient(135deg, #f97316, #ea580c); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 14px;">2</div>
+                <span style="font-weight: 700; color: #1f2937; font-size: 15px;">Upload Filled Template</span>
+            </div>
+            <div style="color: #6b7280; font-size: 14px; padding-left: 44px;">Fill in the template with your asset data and upload it here.</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -9493,14 +9541,19 @@ elif page == "Import/Export":
 
                     # Step 3: Preview & Validate
                     st.markdown("""
-                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                        <div style="font-weight: 600; color: #1e293b; margin-bottom: 8px;">Step 3: Preview & Validate</div>
-                        <div style="color: #64748b; font-size: 14px;">Review your data and check for any validation errors.</div>
+                    <div style="background: #ffffff; border: 2px solid #fed7aa; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(249, 115, 22, 0.1);">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                            <div style="background: linear-gradient(135deg, #f97316, #ea580c); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 14px;">3</div>
+                            <span style="font-weight: 700; color: #1f2937; font-size: 15px;">Preview & Validate</span>
+                        </div>
+                        <div style="color: #6b7280; font-size: 14px; padding-left: 44px;">Review your data and check for any validation errors.</div>
                     </div>
                     """, unsafe_allow_html=True)
 
                     # Show preview
-                    st.markdown("**Data Preview** (first 10 rows)")
+                    st.markdown("""
+                    <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">📋 Data Preview (first 10 rows)</div>
+                    """, unsafe_allow_html=True)
                     preview_cols = ['Serial Number', 'Asset Type', 'Brand', 'Model', 'Current Status']
                     available_preview = [c for c in preview_cols if c in import_df.columns]
                     if available_preview:
@@ -9533,26 +9586,31 @@ elif page == "Import/Export":
                         error_count = len(errors)
                         warning_count = len(warnings)
 
+                        # Validation Summary Header
+                        st.markdown("""
+                        <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 12px;">📊 Validation Summary</div>
+                        """, unsafe_allow_html=True)
+
                         summary_col1, summary_col2, summary_col3 = st.columns(3)
                         with summary_col1:
                             st.markdown(f"""
-                            <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 12px; text-align: center;">
-                                <div style="font-size: 24px; font-weight: bold; color: #166534;">{valid_count}</div>
-                                <div style="color: #15803d; font-size: 14px;">Valid Records</div>
+                            <div style="background: linear-gradient(135deg, #f0fdf4, #dcfce7); border: 2px solid #86efac; border-radius: 12px; padding: 16px; text-align: center;">
+                                <div style="font-size: 32px; font-weight: 700; color: #166534;">{valid_count}</div>
+                                <div style="color: #15803d; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Valid Records</div>
                             </div>
                             """, unsafe_allow_html=True)
                         with summary_col2:
                             st.markdown(f"""
-                            <div style="background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 12px; text-align: center;">
-                                <div style="font-size: 24px; font-weight: bold; color: #991b1b;">{error_count}</div>
-                                <div style="color: #dc2626; font-size: 14px;">Errors</div>
+                            <div style="background: linear-gradient(135deg, #fef2f2, #fee2e2); border: 2px solid #fca5a5; border-radius: 12px; padding: 16px; text-align: center;">
+                                <div style="font-size: 32px; font-weight: 700; color: #991b1b;">{error_count}</div>
+                                <div style="color: #dc2626; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Errors</div>
                             </div>
                             """, unsafe_allow_html=True)
                         with summary_col3:
                             st.markdown(f"""
-                            <div style="background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 12px; text-align: center;">
-                                <div style="font-size: 24px; font-weight: bold; color: #92400e;">{warning_count}</div>
-                                <div style="color: #d97706; font-size: 14px;">Warnings</div>
+                            <div style="background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 2px solid #fcd34d; border-radius: 12px; padding: 16px; text-align: center;">
+                                <div style="font-size: 32px; font-weight: 700; color: #92400e;">{warning_count}</div>
+                                <div style="color: #d97706; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Warnings</div>
                             </div>
                             """, unsafe_allow_html=True)
 
@@ -9579,9 +9637,12 @@ elif page == "Import/Export":
                         # Step 4: Import
                         st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
                         st.markdown("""
-                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                            <div style="font-weight: 600; color: #1e293b; margin-bottom: 8px;">Step 4: Import Assets</div>
-                            <div style="color: #64748b; font-size: 14px;">Click the button below to import valid records into the database.</div>
+                        <div style="background: #ffffff; border: 2px solid #fed7aa; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(249, 115, 22, 0.1);">
+                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                <div style="background: linear-gradient(135deg, #f97316, #ea580c); width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 14px;">4</div>
+                                <span style="font-weight: 700; color: #1f2937; font-size: 15px;">Import Assets</span>
+                            </div>
+                            <div style="color: #6b7280; font-size: 14px; padding-left: 44px;">Click the button below to import valid records into the database.</div>
                         </div>
                         """, unsafe_allow_html=True)
 
