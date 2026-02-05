@@ -5590,6 +5590,39 @@ st.sidebar.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# Navigation menu with groups - filter by role and collect button clicks
+nav_clicked = None
+current_role = st.session_state.user_role
+visible_menu = get_visible_menu_items(current_role)
+
+for group_name, items in visible_menu.items():
+    # Compact section header
+    st.sidebar.markdown(f'<div class="nav-section-header">{group_name}</div>', unsafe_allow_html=True)
+
+    for item in items:
+        is_active = st.session_state.current_page == item["name"]
+        is_primary_action = item["name"] == ROLE_PRIMARY_ACTION.get(current_role)
+
+        # Primary action indicator (subtle)
+        if is_primary_action and not is_active:
+            st.sidebar.markdown(
+                '<div style="height: 2px; background: linear-gradient(90deg, #f97316 0%, transparent 100%); margin: 2px 16px 2px 16px; border-radius: 1px;"></div>',
+                unsafe_allow_html=True
+            )
+
+        if st.sidebar.button(
+            f"{item['icon']}  {item['name']}",
+            key=f"nav_{item['key']}_{current_role}",
+            type="primary" if is_active else "secondary",
+            help="Recommended for your role" if is_primary_action and not is_active else None
+        ):
+            nav_clicked = item["name"]
+
+# ============================================
+# USER INFO SECTION (After Navigation)
+# ============================================
+st.sidebar.markdown('<div style="margin-top: 20px;"></div>', unsafe_allow_html=True)
+
 # User Info & Role
 user_display_name = st.session_state.user_full_name or st.session_state.username
 user_role = st.session_state.user_role or "operations"
@@ -5624,34 +5657,6 @@ if st.sidebar.button("Sign Out", key="logout_btn", use_container_width=True):
     )
     logout_user()
     safe_rerun()
-
-# Navigation menu with groups - filter by role and collect button clicks
-nav_clicked = None
-current_role = st.session_state.user_role
-visible_menu = get_visible_menu_items(current_role)
-
-for group_name, items in visible_menu.items():
-    # Compact section header
-    st.sidebar.markdown(f'<div class="nav-section-header">{group_name}</div>', unsafe_allow_html=True)
-
-    for item in items:
-        is_active = st.session_state.current_page == item["name"]
-        is_primary_action = item["name"] == ROLE_PRIMARY_ACTION.get(current_role)
-
-        # Primary action indicator (subtle)
-        if is_primary_action and not is_active:
-            st.sidebar.markdown(
-                '<div style="height: 2px; background: linear-gradient(90deg, #f97316 0%, transparent 100%); margin: 2px 16px 2px 16px; border-radius: 1px;"></div>',
-                unsafe_allow_html=True
-            )
-
-        if st.sidebar.button(
-            f"{item['icon']}  {item['name']}",
-            key=f"nav_{item['key']}_{current_role}",
-            type="primary" if is_active else "secondary",
-            help="Recommended for your role" if is_primary_action and not is_active else None
-        ):
-            nav_clicked = item["name"]
 
 # Update page if navigation button was clicked
 if nav_clicked and nav_clicked != st.session_state.current_page:
