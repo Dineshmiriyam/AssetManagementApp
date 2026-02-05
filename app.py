@@ -6973,6 +6973,7 @@ elif page == "Assets":
         default_brand_filter = st.session_state.get("brand_filter", "All")
         sla_filter_value = st.session_state.get("sla_filter", None)
         billing_paused_filter = st.session_state.get("billing_paused_filter", False)
+        client_location_filter = st.session_state.get("client_location_filter", None)
 
         # Clear the filters after using them
         if "asset_filter" in st.session_state:
@@ -6983,6 +6984,8 @@ elif page == "Assets":
             del st.session_state.sla_filter
         if "billing_paused_filter" in st.session_state:
             del st.session_state.billing_paused_filter
+        if "client_location_filter" in st.session_state:
+            del st.session_state.client_location_filter
 
         # Show active filter banner if SLA or billing paused filter is applied
         if sla_filter_value:
@@ -6991,6 +6994,15 @@ elif page == "Assets":
             st.info(f"🔍 Showing assets with **{sla_labels.get(sla_filter_value, sla_filter_value)}** status. Clear filters to see all assets.")
         elif billing_paused_filter:
             st.info("🔍 Showing assets with **Billing Paused** (Returned/Under Repair). Clear filters to see all assets.")
+        elif client_location_filter:
+            st.info(f"🔗 Showing assets at **{client_location_filter}**. Clear filters to see all assets.")
+
+        # Handle linked record navigation - pre-fill search with serial number
+        linked_serial = st.session_state.get("asset_search_serial", None)
+        if linked_serial:
+            st.session_state.assets_search = linked_serial
+            del st.session_state.asset_search_serial
+            st.info(f"🔗 Navigated from linked record. Showing asset: **{linked_serial}**")
 
         # Search bar (searches Serial, Brand, Model)
         search = st.text_input("🔍 Search (Serial Number, Brand, Model)", key="assets_search", placeholder="Type to search...")
@@ -7077,6 +7089,10 @@ elif page == "Assets":
         if billing_paused_filter and "Current Status" in filtered_df.columns:
             paused_statuses = ["RETURNED_FROM_CLIENT", "WITH_VENDOR_REPAIR"]
             filtered_df = filtered_df[filtered_df["Current Status"].isin(paused_statuses)]
+
+        # Apply client location filter if set from Billing page navigation
+        if client_location_filter and "Current Location" in filtered_df.columns:
+            filtered_df = filtered_df[filtered_df["Current Location"] == client_location_filter]
 
         # Enhanced search - searches multiple columns
         if search:
@@ -7340,6 +7356,88 @@ elif page == "Assets":
 
             styled_df = paginated_df[available_cols].style.apply(highlight_status, axis=1)
             st.dataframe(styled_df, hide_index=True)
+
+        # ========== VIEW ASSET HISTORY - LINKED RECORDS NAVIGATION ==========
+        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+        with st.expander("🔗 View Asset History (Assignments & Issues)", expanded=False):
+            if "Serial Number" in filtered_df.columns and len(filtered_df) > 0:
+                serial_options = filtered_df["Serial Number"].dropna().unique().tolist()
+                if serial_options:
+                    hist_col1, hist_col2 = st.columns([3, 1])
+                    with hist_col1:
+                        selected_history_serial = st.selectbox(
+                            "Select Asset to View History",
+                            options=serial_options,
+                            key="asset_history_serial"
+                        )
+
+                    if selected_history_serial:
+                        # Show asset details
+                        asset_info = filtered_df[filtered_df["Serial Number"] == selected_history_serial]
+                        if not asset_info.empty:
+                            asset_row = asset_info.iloc[0]
+                            st.markdown("---")
+                            st.markdown("**📦 Asset Details:**")
+                            d_col1, d_col2, d_col3, d_col4 = st.columns(4)
+                            with d_col1:
+                                st.markdown(f"**Serial:** {asset_row.get('Serial Number', 'N/A')}")
+                            with d_col2:
+                                st.markdown(f"**Type:** {asset_row.get('Asset Type', 'N/A')}")
+                            with d_col3:
+                                st.markdown(f"**Brand:** {asset_row.get('Brand', 'N/A')} {asset_row.get('Model', '')}")
+                            with d_col4:
+                                st.markdown(f"**Status:** {asset_row.get('Current Status', 'N/A')}")
+
+                        # Show assignment history
+                        st.markdown("---")
+                        st.markdown("**📋 Assignment History:**")
+                        if not assignments_df.empty and "Serial Number" in assignments_df.columns:
+                            asset_assignments = assignments_df[assignments_df["Serial Number"] == selected_history_serial]
+                            if not asset_assignments.empty:
+                                assign_cols = ["Client Name", "Assignment Type", "Status", "Shipment Date"]
+                                available_assign_cols = [c for c in assign_cols if c in asset_assignments.columns]
+                                st.dataframe(asset_assignments[available_assign_cols], hide_index=True)
+
+                                # Quick link to Assignments page
+                                if st.button("📋 View in Assignments Page", key="link_to_assignments"):
+                                    st.session_state.current_page = "Assignments"
+                                    st.session_state.assign_search = selected_history_serial
+                                    safe_rerun()
+                            else:
+                                st.info("No assignment records found for this asset.")
+                        else:
+                            st.info("No assignment data available.")
+
+                        # Show issues history
+                        st.markdown("---")
+                        st.markdown("**⚠️ Issue History:**")
+                        if not issues_df.empty:
+                            # Try different column names for serial
+                            serial_col = None
+                            for col in ["Asset Serial", "Serial Number", "Asset_Serial"]:
+                                if col in issues_df.columns:
+                                    serial_col = col
+                                    break
+
+                            if serial_col:
+                                asset_issues = issues_df[issues_df[serial_col] == selected_history_serial]
+                                if not asset_issues.empty:
+                                    issue_cols = ["Issue Title", "Issue Type", "Severity", "Status", "Reported Date"]
+                                    available_issue_cols = [c for c in issue_cols if c in asset_issues.columns]
+                                    st.dataframe(asset_issues[available_issue_cols], hide_index=True)
+
+                                    # Quick link to Issues page
+                                    if st.button("⚠️ View in Issues Page", key="link_to_issues"):
+                                        st.session_state.current_page = "Issues & Repairs"
+                                        safe_rerun()
+                                else:
+                                    st.success("✅ No issues reported for this asset.")
+                            else:
+                                st.info("Issues don't have linked asset serial numbers.")
+                        else:
+                            st.info("No issues data available.")
+            else:
+                st.info("No assets available to view history.")
 
         # Export actions
         st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
@@ -8108,6 +8206,48 @@ elif page == "Assignments":
                     <span style="font-size: 14px; color: #6b7280;">of {len(assignments_df)} assignments</span>
                 </div>
                 """, unsafe_allow_html=True)
+
+                # Quick View Asset Panel - Linked Records Navigation
+                with st.expander("🔗 Quick View Asset Details", expanded=False):
+                    if "Serial Number" in filtered_assignments.columns and len(filtered_assignments) > 0:
+                        serial_options = filtered_assignments["Serial Number"].dropna().unique().tolist()
+                        if serial_options:
+                            qv_col1, qv_col2 = st.columns([3, 1])
+                            with qv_col1:
+                                selected_serial = st.selectbox(
+                                    "Select Asset Serial Number",
+                                    options=serial_options,
+                                    key="assign_quick_view_serial"
+                                )
+                            with qv_col2:
+                                st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+                                if st.button("🔍 View Asset", key="assign_view_asset_btn", use_container_width=True):
+                                    st.session_state.current_page = "Assets"
+                                    st.session_state.asset_search_serial = selected_serial
+                                    safe_rerun()
+
+                            # Show asset details if available
+                            if selected_serial and not assets_df.empty:
+                                asset_info = assets_df[assets_df["Serial Number"] == selected_serial]
+                                if not asset_info.empty:
+                                    asset_row = asset_info.iloc[0]
+                                    st.markdown("---")
+                                    st.markdown("**Asset Details:**")
+                                    detail_col1, detail_col2, detail_col3 = st.columns(3)
+                                    with detail_col1:
+                                        st.markdown(f"**Serial:** {asset_row.get('Serial Number', 'N/A')}")
+                                        st.markdown(f"**Type:** {asset_row.get('Asset Type', 'N/A')}")
+                                    with detail_col2:
+                                        st.markdown(f"**Brand:** {asset_row.get('Brand', 'N/A')}")
+                                        st.markdown(f"**Model:** {asset_row.get('Model', 'N/A')}")
+                                    with detail_col3:
+                                        st.markdown(f"**Status:** {asset_row.get('Current Status', 'N/A')}")
+                                        st.markdown(f"**Location:** {asset_row.get('Current Location', 'N/A')}")
+                        else:
+                            st.info("No assets in current view")
+                    else:
+                        st.info("No serial numbers available")
+
                 # Apply pagination
                 paginated_assignments = paginate_dataframe(filtered_assignments, "assignments_table", show_controls=True)
                 st.dataframe(paginated_assignments, hide_index=True)
@@ -8225,6 +8365,55 @@ elif page == "Issues & Repairs":
                     <span style="font-size: 14px; color: #6b7280;">of {len(issues_df)} issues</span>
                 </div>
                 """, unsafe_allow_html=True)
+
+                # Quick View Asset Panel - Linked Records Navigation
+                with st.expander("🔗 Quick View Related Asset", expanded=False):
+                    # Check if there's an Asset Serial column in issues
+                    serial_col = None
+                    for col in ["Asset Serial", "Serial Number", "Asset_Serial"]:
+                        if col in filtered_issues.columns:
+                            serial_col = col
+                            break
+
+                    if serial_col and len(filtered_issues) > 0:
+                        serial_options = filtered_issues[serial_col].dropna().unique().tolist()
+                        if serial_options:
+                            iqv_col1, iqv_col2 = st.columns([3, 1])
+                            with iqv_col1:
+                                selected_issue_serial = st.selectbox(
+                                    "Select Asset Serial from Issues",
+                                    options=serial_options,
+                                    key="issue_quick_view_serial"
+                                )
+                            with iqv_col2:
+                                st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+                                if st.button("🔍 View Asset", key="issue_view_asset_btn", use_container_width=True):
+                                    st.session_state.current_page = "Assets"
+                                    st.session_state.asset_search_serial = selected_issue_serial
+                                    safe_rerun()
+
+                            # Show asset details if available
+                            if selected_issue_serial and not assets_df.empty:
+                                asset_info = assets_df[assets_df["Serial Number"] == selected_issue_serial]
+                                if not asset_info.empty:
+                                    asset_row = asset_info.iloc[0]
+                                    st.markdown("---")
+                                    st.markdown("**Asset Details:**")
+                                    detail_col1, detail_col2, detail_col3 = st.columns(3)
+                                    with detail_col1:
+                                        st.markdown(f"**Serial:** {asset_row.get('Serial Number', 'N/A')}")
+                                        st.markdown(f"**Type:** {asset_row.get('Asset Type', 'N/A')}")
+                                    with detail_col2:
+                                        st.markdown(f"**Brand:** {asset_row.get('Brand', 'N/A')}")
+                                        st.markdown(f"**Model:** {asset_row.get('Model', 'N/A')}")
+                                    with detail_col3:
+                                        st.markdown(f"**Status:** {asset_row.get('Current Status', 'N/A')}")
+                                        st.markdown(f"**Location:** {asset_row.get('Current Location', 'N/A')}")
+                        else:
+                            st.info("No asset serials in current issues")
+                    else:
+                        st.info("Issue records don't have linked asset serial numbers")
+
                 # Apply pagination
                 paginated_issues = paginate_dataframe(filtered_issues, "issues_table", show_controls=True)
                 st.dataframe(paginated_issues[available_cols], hide_index=True)
@@ -8748,6 +8937,40 @@ elif page == "Billing":
 
                 billing_summary = pd.DataFrame(client_data)
 
+                # Quick View Client Assets - Linked Records Navigation
+                with st.expander("🔗 View Client's Assets", expanded=False):
+                    client_options = billing_summary["Client"].tolist()
+                    if client_options:
+                        cqv_col1, cqv_col2 = st.columns([3, 1])
+                        with cqv_col1:
+                            selected_billing_client = st.selectbox(
+                                "Select Client",
+                                options=client_options,
+                                key="billing_quick_view_client"
+                            )
+                        with cqv_col2:
+                            st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+                            if st.button("🔍 View Client Assets", key="billing_view_client_btn", use_container_width=True):
+                                st.session_state.current_page = "Assets"
+                                st.session_state.asset_filter = "WITH_CLIENT"
+                                st.session_state.client_location_filter = selected_billing_client
+                                safe_rerun()
+
+                        # Show client's assets
+                        if selected_billing_client and not assets_df.empty:
+                            client_assets_df = assets_df[
+                                (assets_df["Current Status"] == "WITH_CLIENT") &
+                                (assets_df["Current Location"] == selected_billing_client)
+                            ]
+                            if not client_assets_df.empty:
+                                st.markdown("---")
+                                st.markdown(f"**Assets with {selected_billing_client}:**")
+                                display_cols = ["Serial Number", "Brand", "Model", "Asset Type"]
+                                available_cols = [c for c in display_cols if c in client_assets_df.columns]
+                                st.dataframe(client_assets_df[available_cols].head(10), hide_index=True)
+                                if len(client_assets_df) > 10:
+                                    st.caption(f"Showing 10 of {len(client_assets_df)} assets. Click 'View Client Assets' to see all.")
+
                 st.dataframe(
                     billing_summary,
                                         hide_index=True,
@@ -8847,6 +9070,46 @@ elif page == "Billing":
                     elif status == "Billing Paused":
                         return [f'background-color: {BILLING_CONFIG["status_colors"]["paused"]}20'] * len(row)
                     return [''] * len(row)
+
+                # Quick View Asset Panel - Linked Records Navigation
+                with st.expander("🔗 Quick View Asset Details", expanded=False):
+                    if "Serial Number" in billing_view.columns and len(billing_view) > 0:
+                        serial_options = billing_view["Serial Number"].dropna().unique().tolist()
+                        if serial_options:
+                            bqv_col1, bqv_col2 = st.columns([3, 1])
+                            with bqv_col1:
+                                selected_billing_serial = st.selectbox(
+                                    "Select Asset Serial",
+                                    options=serial_options,
+                                    key="billing_quick_view_serial"
+                                )
+                            with bqv_col2:
+                                st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+                                if st.button("🔍 View in Assets", key="billing_view_asset_btn", use_container_width=True):
+                                    st.session_state.current_page = "Assets"
+                                    st.session_state.asset_search_serial = selected_billing_serial
+                                    safe_rerun()
+
+                            # Show asset details
+                            if selected_billing_serial:
+                                asset_info = billing_view[billing_view["Serial Number"] == selected_billing_serial]
+                                if not asset_info.empty:
+                                    asset_row = asset_info.iloc[0]
+                                    st.markdown("---")
+                                    detail_col1, detail_col2, detail_col3 = st.columns(3)
+                                    with detail_col1:
+                                        st.markdown(f"**Brand:** {asset_row.get('Brand', 'N/A')}")
+                                        st.markdown(f"**Model:** {asset_row.get('Model', 'N/A')}")
+                                    with detail_col2:
+                                        st.markdown(f"**Status:** {asset_row.get('Current Status', 'N/A')}")
+                                        st.markdown(f"**Location:** {asset_row.get('Current Location', 'N/A')}")
+                                    with detail_col3:
+                                        st.markdown(f"**Billing:** {asset_row.get('Billing Status', 'N/A')}")
+                                        st.markdown(f"**Reason:** {asset_row.get('Billing Reason', 'N/A')}")
+                        else:
+                            st.info("No assets in current view")
+                    else:
+                        st.info("No assets available")
 
                 st.dataframe(
                     billing_view,
