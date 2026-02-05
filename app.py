@@ -9340,8 +9340,10 @@ elif page == "Import/Export":
         else:
             export_assets = []
 
-        if export_assets:
-            export_df = pd.DataFrame(export_assets)
+        # Convert to DataFrame
+        export_df = pd.DataFrame(export_assets) if export_assets is not None else pd.DataFrame()
+
+        if len(export_df) > 0:
 
             # Show summary
             st.markdown(f"""
