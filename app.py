@@ -3834,6 +3834,20 @@ st.markdown("""
         min-width: 0;
     }
 
+    /* ===== CLICKABLE METRIC CARDS ===== */
+    .clickable-card {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .clickable-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .clickable-card:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -6322,10 +6336,11 @@ if page == "Dashboard":
                 critical_bg = "#fef2f2" if sla_counts['critical'] > 0 else "#ffffff"
                 critical_border = "#fecaca" if sla_counts['critical'] > 0 else "#e5e7eb"
                 st.markdown(f"""
-                <div class="metric-card" style="background: {critical_bg}; border: 1px solid {critical_border}; border-left: 4px solid #dc2626; border-radius: 12px; padding: 20px;">
+                <div class="metric-card clickable-card" style="background: {critical_bg}; border: 1px solid {critical_border}; border-left: 4px solid #dc2626; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="document.querySelector('#sla-critical-btn button').click()">
                     <div style="font-size: 11px; font-weight: 600; color: #dc2626; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">SLA Critical</div>
                     <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{sla_counts['critical']}</div>
                     <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Exceeds threshold</div>
+                    <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click to view →</div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -6333,10 +6348,11 @@ if page == "Dashboard":
                 warning_bg = "#fffbeb" if sla_counts['warning'] > 0 else "#ffffff"
                 warning_border = "#fde68a" if sla_counts['warning'] > 0 else "#e5e7eb"
                 st.markdown(f"""
-                <div class="metric-card" style="background: {warning_bg}; border: 1px solid {warning_border}; border-left: 4px solid #f59e0b; border-radius: 12px; padding: 20px;">
+                <div class="metric-card clickable-card" style="background: {warning_bg}; border: 1px solid {warning_border}; border-left: 4px solid #f59e0b; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="document.querySelector('#sla-warning-btn button').click()">
                     <div style="font-size: 11px; font-weight: 600; color: #d97706; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">SLA Warning</div>
                     <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{sla_counts['warning']}</div>
                     <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Approaching limit</div>
+                    <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click to view →</div>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -6344,12 +6360,39 @@ if page == "Dashboard":
                 ok_bg = "#f0fdf4" if sla_counts['ok'] > 0 else "#ffffff"
                 ok_border = "#bbf7d0" if sla_counts['ok'] > 0 else "#e5e7eb"
                 st.markdown(f"""
-                <div class="metric-card" style="background: {ok_bg}; border: 1px solid {ok_border}; border-left: 4px solid #16a34a; border-radius: 12px; padding: 20px;">
+                <div class="metric-card clickable-card" style="background: {ok_bg}; border: 1px solid {ok_border}; border-left: 4px solid #16a34a; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="document.querySelector('#sla-ok-btn button').click()">
                     <div style="font-size: 11px; font-weight: 600; color: #16a34a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">SLA OK</div>
                     <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{sla_counts['ok']}</div>
                     <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Within target</div>
+                    <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click to view →</div>
                 </div>
                 """, unsafe_allow_html=True)
+
+            # Hidden buttons for SLA navigation
+            st.markdown("""<div style="position:absolute;left:-9999px;height:0;overflow:hidden;">""", unsafe_allow_html=True)
+            sla_btn1, sla_btn2, sla_btn3 = st.columns(3)
+            with sla_btn1:
+                st.markdown('<div id="sla-critical-btn">', unsafe_allow_html=True)
+                if st.button("sla_critical", key="sla_critical_nav"):
+                    st.session_state.current_page = "Assets"
+                    st.session_state.sla_filter = "critical"
+                    safe_rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
+            with sla_btn2:
+                st.markdown('<div id="sla-warning-btn">', unsafe_allow_html=True)
+                if st.button("sla_warning", key="sla_warning_nav"):
+                    st.session_state.current_page = "Assets"
+                    st.session_state.sla_filter = "warning"
+                    safe_rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
+            with sla_btn3:
+                st.markdown('<div id="sla-ok-btn">', unsafe_allow_html=True)
+                if st.button("sla_ok", key="sla_ok_nav"):
+                    st.session_state.current_page = "Assets"
+                    st.session_state.sla_filter = "ok"
+                    safe_rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown("""</div>""", unsafe_allow_html=True)
 
         if role_config["show_billing"]:
             # Billing Insights for Finance and Admin - using centralized calculations
@@ -6364,19 +6407,21 @@ if page == "Dashboard":
             if current_role == "finance":
                 with insight_cols[0]:
                     st.markdown(f"""
-                    <div class="metric-card" style="background: #ffffff; border: 1px solid #e5e7eb; border-left: 4px solid #6366f1; border-radius: 12px; padding: 20px;">
+                    <div class="metric-card clickable-card" style="background: #ffffff; border: 1px solid #e5e7eb; border-left: 4px solid #6366f1; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="document.querySelector('#billable-assets-btn button').click()">
                         <div style="font-size: 11px; font-weight: 600; color: #6366f1; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Billable Assets</div>
                         <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{billable_count}</div>
                         <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Currently deployed</div>
+                        <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click to view →</div>
                     </div>
                     """, unsafe_allow_html=True)
 
                 with insight_cols[1]:
                     st.markdown(f"""
-                    <div class="metric-card" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; border-radius: 12px; padding: 20px;">
+                    <div class="metric-card clickable-card" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="document.querySelector('#revenue-btn button').click()">
                         <div style="font-size: 11px; font-weight: 600; color: #16a34a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Est. Monthly Revenue</div>
                         <div style="font-size: 36px; font-weight: 700; color: #16a34a; line-height: 1;">₹{estimated_revenue:,}</div>
                         <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">@ ₹{monthly_rate:,}/asset</div>
+                        <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click for billing →</div>
                     </div>
                     """, unsafe_allow_html=True)
 
@@ -6385,22 +6430,58 @@ if page == "Dashboard":
                     paused_bg = "#fffbeb" if paused_count > 0 else "#ffffff"
                     paused_border = "#fde68a" if paused_count > 0 else "#e5e7eb"
                     st.markdown(f"""
-                    <div class="metric-card" style="background: {paused_bg}; border: 1px solid {paused_border}; border-left: 4px solid #f59e0b; border-radius: 12px; padding: 20px;">
+                    <div class="metric-card clickable-card" style="background: {paused_bg}; border: 1px solid {paused_border}; border-left: 4px solid #f59e0b; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="document.querySelector('#paused-btn button').click()">
                         <div style="font-size: 11px; font-weight: 600; color: #d97706; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Billing Paused</div>
                         <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{paused_count}</div>
                         <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Returned/Repair</div>
+                        <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click to view →</div>
                     </div>
                     """, unsafe_allow_html=True)
+
+                # Hidden buttons for Finance navigation
+                st.markdown("""<div style="position:absolute;left:-9999px;height:0;overflow:hidden;">""", unsafe_allow_html=True)
+                fin_btn1, fin_btn2, fin_btn3 = st.columns(3)
+                with fin_btn1:
+                    st.markdown('<div id="billable-assets-btn">', unsafe_allow_html=True)
+                    if st.button("billable_assets", key="billable_assets_nav"):
+                        st.session_state.current_page = "Assets"
+                        st.session_state.asset_filter = "WITH_CLIENT"
+                        safe_rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
+                with fin_btn2:
+                    st.markdown('<div id="revenue-btn">', unsafe_allow_html=True)
+                    if st.button("revenue", key="revenue_nav"):
+                        st.session_state.current_page = "Billing"
+                        safe_rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
+                with fin_btn3:
+                    st.markdown('<div id="paused-btn">', unsafe_allow_html=True)
+                    if st.button("paused", key="paused_nav"):
+                        st.session_state.current_page = "Assets"
+                        st.session_state.billing_paused_filter = True
+                        safe_rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
+                st.markdown("""</div>""", unsafe_allow_html=True)
 
             elif current_role == "admin":
                 with insight_cols[3]:
                     st.markdown(f"""
-                    <div class="metric-card" style="background: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #3b82f6; border-radius: 12px; padding: 20px;">
+                    <div class="metric-card clickable-card" style="background: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #3b82f6; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="document.querySelector('#admin-revenue-btn button').click()">
                         <div style="font-size: 11px; font-weight: 600; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Est. Revenue</div>
                         <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">₹{estimated_revenue:,}</div>
                         <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">{billable_count} billable @ ₹{monthly_rate:,}</div>
+                        <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click for billing →</div>
                     </div>
                     """, unsafe_allow_html=True)
+
+                # Hidden button for Admin revenue navigation
+                st.markdown("""<div style="position:absolute;left:-9999px;height:0;overflow:hidden;">""", unsafe_allow_html=True)
+                st.markdown('<div id="admin-revenue-btn">', unsafe_allow_html=True)
+                if st.button("admin_revenue", key="admin_revenue_nav"):
+                    st.session_state.current_page = "Billing"
+                    safe_rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
+                st.markdown("""</div>""", unsafe_allow_html=True)
 
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -6890,12 +6971,26 @@ elif page == "Assets":
         # Get filters from session state (set by KPI card or chart clicks)
         default_status_filter = st.session_state.get("asset_filter", "All")
         default_brand_filter = st.session_state.get("brand_filter", "All")
+        sla_filter_value = st.session_state.get("sla_filter", None)
+        billing_paused_filter = st.session_state.get("billing_paused_filter", False)
 
         # Clear the filters after using them
         if "asset_filter" in st.session_state:
             del st.session_state.asset_filter
         if "brand_filter" in st.session_state:
             del st.session_state.brand_filter
+        if "sla_filter" in st.session_state:
+            del st.session_state.sla_filter
+        if "billing_paused_filter" in st.session_state:
+            del st.session_state.billing_paused_filter
+
+        # Show active filter banner if SLA or billing paused filter is applied
+        if sla_filter_value:
+            sla_labels = {"critical": "SLA Critical", "warning": "SLA Warning", "ok": "SLA OK"}
+            sla_colors = {"critical": "#dc2626", "warning": "#f59e0b", "ok": "#16a34a"}
+            st.info(f"🔍 Showing assets with **{sla_labels.get(sla_filter_value, sla_filter_value)}** status. Clear filters to see all assets.")
+        elif billing_paused_filter:
+            st.info("🔍 Showing assets with **Billing Paused** (Returned/Under Repair). Clear filters to see all assets.")
 
         # Search bar (searches Serial, Brand, Model)
         search = st.text_input("🔍 Search (Serial Number, Brand, Model)", key="assets_search", placeholder="Type to search...")
@@ -6944,6 +7039,44 @@ elif page == "Assets":
 
         if location_filter != "All" and "Current Location" in filtered_df.columns:
             filtered_df = filtered_df[filtered_df["Current Location"] == location_filter]
+
+        # Apply SLA filter if set from dashboard click
+        if sla_filter_value and "Current Status" in filtered_df.columns:
+            # SLA only applies to certain statuses
+            sla_statuses = ["RETURNED_FROM_CLIENT", "WITH_VENDOR_REPAIR", "IN_OFFICE_TESTING"]
+            filtered_df = filtered_df[filtered_df["Current Status"].isin(sla_statuses)]
+
+            if "Days in Status" in filtered_df.columns:
+                def get_sla_level(row):
+                    status = row.get("Current Status", "")
+                    days = row.get("Days in Status", 0)
+                    if pd.isna(days):
+                        days = 0
+                    days = int(days)
+
+                    # Get SLA thresholds for this status
+                    if status in SLA_CONFIG:
+                        warning_threshold = SLA_CONFIG[status].get("warning", 999)
+                        critical_threshold = SLA_CONFIG[status].get("critical", 999)
+
+                        if days >= critical_threshold:
+                            return "critical"
+                        elif days >= warning_threshold:
+                            return "warning"
+                        else:
+                            return "ok"
+                    return "ok"
+
+                # Add SLA level column and filter
+                filtered_df = filtered_df.copy()
+                filtered_df["_sla_level"] = filtered_df.apply(get_sla_level, axis=1)
+                filtered_df = filtered_df[filtered_df["_sla_level"] == sla_filter_value]
+                filtered_df = filtered_df.drop(columns=["_sla_level"])
+
+        # Apply billing paused filter if set from dashboard click
+        if billing_paused_filter and "Current Status" in filtered_df.columns:
+            paused_statuses = ["RETURNED_FROM_CLIENT", "WITH_VENDOR_REPAIR"]
+            filtered_df = filtered_df[filtered_df["Current Status"].isin(paused_statuses)]
 
         # Enhanced search - searches multiple columns
         if search:
