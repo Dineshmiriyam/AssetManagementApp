@@ -6897,26 +6897,38 @@ elif page == "Assets":
         if "brand_filter" in st.session_state:
             del st.session_state.brand_filter
 
+        # Search bar (searches Serial, Brand, Model)
+        search = st.text_input("🔍 Search (Serial Number, Brand, Model)", key="assets_search", placeholder="Type to search...")
+
         # Filters row
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 0.5])
 
         with col1:
             filter_options = ["All"] + ASSET_STATUSES
             default_index = filter_options.index(default_status_filter) if default_status_filter in filter_options else 0
-            status_filter = st.selectbox("Filter by Status", filter_options, index=default_index)
+            status_filter = st.selectbox("Status", filter_options, index=default_index)
 
         with col2:
-            brand_list = list(assets_df["Brand"].dropna().unique()) if "Brand" in assets_df.columns else []
+            brand_list = sorted(list(assets_df["Brand"].dropna().unique())) if "Brand" in assets_df.columns else []
             brand_options = ["All"] + brand_list
             default_brand_index = brand_options.index(default_brand_filter) if default_brand_filter in brand_options else 0
-            brand_filter = st.selectbox("Filter by Brand", brand_options, index=default_brand_index)
+            brand_filter = st.selectbox("Brand", brand_options, index=default_brand_index)
 
         with col3:
-            type_list = list(assets_df["Asset Type"].dropna().unique()) if "Asset Type" in assets_df.columns else []
-            type_filter = st.selectbox("Filter by Type", ["All"] + type_list)
+            type_list = sorted(list(assets_df["Asset Type"].dropna().unique())) if "Asset Type" in assets_df.columns else []
+            type_filter = st.selectbox("Type", ["All"] + type_list)
 
         with col4:
-            search = st.text_input("Search Serial Number")
+            location_list = sorted(list(assets_df["Current Location"].dropna().unique())) if "Current Location" in assets_df.columns else []
+            location_filter = st.selectbox("Location", ["All"] + location_list)
+
+        with col5:
+            st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+            if st.button("Clear", key="clear_asset_filters", use_container_width=True):
+                for key in ["assets_search", "asset_filter", "brand_filter"]:
+                    if key in st.session_state:
+                        del st.session_state[key]
+                safe_rerun()
 
         # Apply filters
         filtered_df = assets_df.copy()
@@ -6930,8 +6942,19 @@ elif page == "Assets":
         if type_filter != "All" and "Asset Type" in filtered_df.columns:
             filtered_df = filtered_df[filtered_df["Asset Type"] == type_filter]
 
-        if search and "Serial Number" in filtered_df.columns:
-            filtered_df = filtered_df[filtered_df["Serial Number"].str.contains(search, case=False, na=False)]
+        if location_filter != "All" and "Current Location" in filtered_df.columns:
+            filtered_df = filtered_df[filtered_df["Current Location"] == location_filter]
+
+        # Enhanced search - searches multiple columns
+        if search:
+            search_mask = pd.Series([False] * len(filtered_df), index=filtered_df.index)
+            if "Serial Number" in filtered_df.columns:
+                search_mask |= filtered_df["Serial Number"].str.contains(search, case=False, na=False)
+            if "Brand" in filtered_df.columns:
+                search_mask |= filtered_df["Brand"].str.contains(search, case=False, na=False)
+            if "Model" in filtered_df.columns:
+                search_mask |= filtered_df["Model"].str.contains(search, case=False, na=False)
+            filtered_df = filtered_df[search_mask]
 
         # Results count with status legend
         st.markdown(f"""
@@ -7688,16 +7711,63 @@ elif page == "Assignments":
 
         with tab1:
             if not assignments_df.empty:
+                # Search bar
+                assign_search = st.text_input("🔍 Search (Serial Number, Client Name)", key="assign_search", placeholder="Type to search...")
+
+                # Filters row
+                acol1, acol2, acol3, acol4 = st.columns([1, 1, 1, 0.5])
+
+                with acol1:
+                    client_list = sorted(list(assignments_df["Client Name"].dropna().unique())) if "Client Name" in assignments_df.columns else []
+                    assign_client_filter = st.selectbox("Client", ["All"] + client_list, key="assign_client_filter")
+
+                with acol2:
+                    status_list = sorted(list(assignments_df["Status"].dropna().unique())) if "Status" in assignments_df.columns else []
+                    assign_status_filter = st.selectbox("Status", ["All"] + status_list, key="assign_status_filter")
+
+                with acol3:
+                    type_list = sorted(list(assignments_df["Assignment Type"].dropna().unique())) if "Assignment Type" in assignments_df.columns else []
+                    assign_type_filter = st.selectbox("Type", ["All"] + type_list, key="assign_type_filter")
+
+                with acol4:
+                    st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+                    if st.button("Clear", key="clear_assign_filters", use_container_width=True):
+                        for key in ["assign_search", "assign_client_filter", "assign_status_filter", "assign_type_filter"]:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                        safe_rerun()
+
+                # Apply filters
+                filtered_assignments = assignments_df.copy()
+
+                if assign_client_filter != "All" and "Client Name" in filtered_assignments.columns:
+                    filtered_assignments = filtered_assignments[filtered_assignments["Client Name"] == assign_client_filter]
+
+                if assign_status_filter != "All" and "Status" in filtered_assignments.columns:
+                    filtered_assignments = filtered_assignments[filtered_assignments["Status"] == assign_status_filter]
+
+                if assign_type_filter != "All" and "Assignment Type" in filtered_assignments.columns:
+                    filtered_assignments = filtered_assignments[filtered_assignments["Assignment Type"] == assign_type_filter]
+
+                # Search
+                if assign_search:
+                    search_mask = pd.Series([False] * len(filtered_assignments), index=filtered_assignments.index)
+                    if "Serial Number" in filtered_assignments.columns:
+                        search_mask |= filtered_assignments["Serial Number"].str.contains(assign_search, case=False, na=False)
+                    if "Client Name" in filtered_assignments.columns:
+                        search_mask |= filtered_assignments["Client Name"].str.contains(assign_search, case=False, na=False)
+                    filtered_assignments = filtered_assignments[search_mask]
+
                 # Results count
                 st.markdown(f"""
                 <div style="display: flex; align-items: center; gap: 8px; padding: 8px 0; margin-bottom: 8px;">
-                    <span style="font-size: 14px; color: #374151; font-weight: 500;">Total</span>
-                    <span style="font-size: 16px; color: #3b82f6; font-weight: 700;">{len(assignments_df)}</span>
-                    <span style="font-size: 14px; color: #6b7280;">assignments</span>
+                    <span style="font-size: 14px; color: #374151; font-weight: 500;">Showing</span>
+                    <span style="font-size: 16px; color: #3b82f6; font-weight: 700;">{len(filtered_assignments)}</span>
+                    <span style="font-size: 14px; color: #6b7280;">of {len(assignments_df)} assignments</span>
                 </div>
                 """, unsafe_allow_html=True)
                 # Apply pagination
-                paginated_assignments = paginate_dataframe(assignments_df, "assignments_table", show_controls=True)
+                paginated_assignments = paginate_dataframe(filtered_assignments, "assignments_table", show_controls=True)
                 st.dataframe(paginated_assignments, hide_index=True)
             else:
                 render_empty_state("no_assignments")
@@ -7765,18 +7835,42 @@ elif page == "Issues & Repairs":
             """, unsafe_allow_html=True)
 
             if not issues_df.empty:
+                # Search bar
+                issue_search = st.text_input("🔍 Search (Issue Title, Category)", key="issue_search", placeholder="Type to search...")
+
                 # Filter options
-                col1, col2 = st.columns(2)
-                with col1:
-                    issue_status_filter = st.selectbox("Filter by Status", ["All", "Open", "In Progress", "Resolved", "Closed"])
-                with col2:
-                    issue_type_filter = st.selectbox("Filter by Type", ["All", "Software", "Hardware"])
+                icol1, icol2, icol3, icol4 = st.columns([1, 1, 1, 0.5])
+                with icol1:
+                    issue_status_filter = st.selectbox("Status", ["All", "Open", "In Progress", "Resolved", "Closed"], key="issue_status_filter")
+                with icol2:
+                    issue_type_filter = st.selectbox("Type", ["All", "Software", "Hardware"], key="issue_type_filter")
+                with icol3:
+                    severity_list = sorted(list(issues_df["Severity"].dropna().unique())) if "Severity" in issues_df.columns else []
+                    issue_severity_filter = st.selectbox("Severity", ["All"] + severity_list, key="issue_severity_filter")
+                with icol4:
+                    st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+                    if st.button("Clear", key="clear_issue_filters", use_container_width=True):
+                        for key in ["issue_search", "issue_status_filter", "issue_type_filter", "issue_severity_filter"]:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                        safe_rerun()
 
                 filtered_issues = issues_df.copy()
                 if issue_status_filter != "All" and "Status" in filtered_issues.columns:
                     filtered_issues = filtered_issues[filtered_issues["Status"] == issue_status_filter]
                 if issue_type_filter != "All" and "Issue Type" in filtered_issues.columns:
                     filtered_issues = filtered_issues[filtered_issues["Issue Type"] == issue_type_filter]
+                if issue_severity_filter != "All" and "Severity" in filtered_issues.columns:
+                    filtered_issues = filtered_issues[filtered_issues["Severity"] == issue_severity_filter]
+
+                # Search
+                if issue_search:
+                    search_mask = pd.Series([False] * len(filtered_issues), index=filtered_issues.index)
+                    if "Issue Title" in filtered_issues.columns:
+                        search_mask |= filtered_issues["Issue Title"].str.contains(issue_search, case=False, na=False)
+                    if "Issue Category" in filtered_issues.columns:
+                        search_mask |= filtered_issues["Issue Category"].str.contains(issue_search, case=False, na=False)
+                    filtered_issues = filtered_issues[search_mask]
 
                 display_cols = ["Issue Title", "Issue Type", "Issue Category", "Severity", "Status", "Reported Date"]
                 available_cols = [c for c in display_cols if c in filtered_issues.columns]
@@ -7893,16 +7987,43 @@ elif page == "Clients":
 
         with tab1:
             if not clients_df.empty:
+                # Search and filter row
+                ccol1, ccol2, ccol3 = st.columns([2, 1, 0.5])
+
+                with ccol1:
+                    client_search = st.text_input("🔍 Search Client Name", key="client_search", placeholder="Type to search...")
+
+                with ccol2:
+                    client_type_list = sorted(list(clients_df["Client Type"].dropna().unique())) if "Client Type" in clients_df.columns else []
+                    client_type_filter = st.selectbox("Type", ["All"] + client_type_list, key="client_type_filter")
+
+                with ccol3:
+                    st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+                    if st.button("Clear", key="clear_client_filters", use_container_width=True):
+                        for key in ["client_search", "client_type_filter"]:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                        safe_rerun()
+
+                # Apply filters
+                filtered_clients = clients_df.copy()
+
+                if client_type_filter != "All" and "Client Type" in filtered_clients.columns:
+                    filtered_clients = filtered_clients[filtered_clients["Client Type"] == client_type_filter]
+
+                if client_search and "Client Name" in filtered_clients.columns:
+                    filtered_clients = filtered_clients[filtered_clients["Client Name"].str.contains(client_search, case=False, na=False)]
+
                 # Results count
                 st.markdown(f"""
                 <div style="display: flex; align-items: center; gap: 8px; padding: 8px 0; margin-bottom: 8px;">
-                    <span style="font-size: 14px; color: #374151; font-weight: 500;">Total</span>
-                    <span style="font-size: 16px; color: #3b82f6; font-weight: 700;">{len(clients_df)}</span>
-                    <span style="font-size: 14px; color: #6b7280;">clients</span>
+                    <span style="font-size: 14px; color: #374151; font-weight: 500;">Showing</span>
+                    <span style="font-size: 16px; color: #3b82f6; font-weight: 700;">{len(filtered_clients)}</span>
+                    <span style="font-size: 14px; color: #6b7280;">of {len(clients_df)} clients</span>
                 </div>
                 """, unsafe_allow_html=True)
                 # Apply pagination to client list
-                paginated_clients = paginate_dataframe(clients_df, "clients_table", show_controls=True)
+                paginated_clients = paginate_dataframe(filtered_clients, "clients_table", show_controls=True)
                 # Show client cards
                 for idx, client in paginated_clients.iterrows():
                     with st.expander(f"**{client.get('Client Name', 'Unknown')}** - {client.get('Client Type', 'N/A')}"):
@@ -8340,15 +8461,41 @@ elif page == "Billing":
                     lambda x: get_asset_billing_status(x)["reason"]
                 )
 
+                # Search bar
+                billing_search = st.text_input("🔍 Search (Serial Number, Location)", key="billing_search", placeholder="Type to search...")
+
                 # Filter options
-                status_filter = st.selectbox(
-                    "Filter by Billing Status",
-                    ["All", "Billing Active", "Billing Paused", "Not Billable"],
-                    key="billing_status_filter"
-                )
+                bcol1, bcol2, bcol3 = st.columns([1, 1, 0.5])
+                with bcol1:
+                    status_filter = st.selectbox(
+                        "Billing Status",
+                        ["All", "Billing Active", "Billing Paused", "Not Billable"],
+                        key="billing_status_filter"
+                    )
+                with bcol2:
+                    location_list = sorted(list(billing_view["Current Location"].dropna().unique()))
+                    billing_location_filter = st.selectbox("Location", ["All"] + location_list, key="billing_location_filter")
+                with bcol3:
+                    st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+                    if st.button("Clear", key="clear_billing_filters", use_container_width=True):
+                        for key in ["billing_search", "billing_status_filter", "billing_location_filter"]:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                        safe_rerun()
 
                 if status_filter != "All":
                     billing_view = billing_view[billing_view["Billing Status"] == status_filter]
+
+                if billing_location_filter != "All":
+                    billing_view = billing_view[billing_view["Current Location"] == billing_location_filter]
+
+                # Search
+                if billing_search:
+                    search_mask = (
+                        billing_view["Serial Number"].str.contains(billing_search, case=False, na=False) |
+                        billing_view["Current Location"].str.contains(billing_search, case=False, na=False)
+                    )
+                    billing_view = billing_view[search_mask]
 
                 # Display with color coding
                 def highlight_billing_status(row):
