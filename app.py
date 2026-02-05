@@ -285,6 +285,7 @@ def init_auth_session():
         'session_token': None,
         'login_error': None,
         'login_processing': False,
+        'last_session_validation': None,
     }
     for key, default_value in defaults.items():
         if key not in st.session_state:
@@ -324,6 +325,7 @@ def validate_current_session():
     """
     Validate the current session against server-side state.
     Prevents session manipulation and ensures session is still valid.
+    Uses caching to avoid validating on every single page refresh.
     """
     if not st.session_state.authenticated:
         return False
@@ -338,6 +340,16 @@ def validate_current_session():
         logout_user(reason="invalid_session")
         return False
 
+    # Only validate every 5 minutes to avoid database calls on every refresh
+    VALIDATION_INTERVAL_SECONDS = 300  # 5 minutes
+    now = datetime.now()
+
+    last_validation = st.session_state.get('last_session_validation')
+    if last_validation:
+        elapsed = (now - last_validation).total_seconds()
+        if elapsed < VALIDATION_INTERVAL_SECONDS:
+            return True  # Skip validation, use cached result
+
     # Validate session token against server
     try:
         is_valid, user_data = validate_session(user_id, session_token)
@@ -349,9 +361,12 @@ def validate_current_session():
         if user_data:
             st.session_state.user_role = user_data.get('role', st.session_state.user_role)
 
+        # Cache the validation time
+        st.session_state.last_session_validation = now
         return True
     except Exception:
-        # Don't crash on validation errors, just continue
+        # Don't crash or logout on validation errors, just continue
+        # This prevents logout on transient database issues
         return True
 
 
@@ -369,6 +384,7 @@ def login_user(user_data: dict):
     st.session_state.login_time = datetime.now()
     st.session_state.last_activity = datetime.now()
     st.session_state.session_token = user_data.get('session_token')
+    st.session_state.last_session_validation = datetime.now()  # Set initial validation time
     st.session_state.login_error = None
     st.session_state.login_processing = False
 
