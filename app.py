@@ -2290,47 +2290,123 @@ st.markdown("""
 
     /* ===== SIDEBAR BRAND ===== */
     .sidebar-brand {
-        padding: var(--space-5) var(--space-4);
-        margin-bottom: var(--space-3);
-        border-bottom: var(--border-width) solid var(--color-sidebar-border);
+        padding: 20px 16px 16px 16px;
+        margin-bottom: 0;
+        text-align: center;
     }
 
-    .sidebar-brand h1 {
-        color: var(--color-brand-primary) !important;
-        font-size: var(--font-size-lg) !important;
-        margin: 0 !important;
-        font-weight: var(--font-weight-semibold) !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: var(--space-2) !important;
+    .sidebar-brand img {
+        height: 28px !important;
+        margin-bottom: 2px;
     }
 
     .sidebar-brand p {
-        color: var(--color-text-tertiary) !important;
-        font-size: var(--font-size-sm) !important;
-        margin: var(--space-1) 0 0 0 !important;
+        color: #64748b !important;
+        font-size: 11px !important;
+        margin: 0 !important;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+
+    /* ===== USER INFO CARD ===== */
+    .user-info-card {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin: 8px 12px 12px 12px;
+        border: 1px solid #334155;
+    }
+
+    .user-info-card .user-name {
+        color: #f8fafc;
+        font-weight: 600;
+        font-size: 13px;
+        margin-bottom: 2px;
+    }
+
+    .user-info-card .user-role {
+        color: #94a3b8;
+        font-size: 11px;
     }
 
     /* ===== CONNECTION STATUS ===== */
     .connection-status {
-        padding: var(--space-2) var(--space-3);
-        border-radius: var(--radius-md);
-        margin: var(--space-2) var(--space-4);
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-medium);
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        gap: var(--space-2);
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 500;
+        margin: 8px 12px;
     }
 
     .status-connected {
-        background: rgba(34, 197, 94, 0.1);
-        color: var(--color-success);
+        background: rgba(34, 197, 94, 0.15);
+        color: #22c55e;
     }
 
     .status-disconnected {
-        background: rgba(239, 68, 68, 0.1);
+        background: rgba(239, 68, 68, 0.15);
         color: #ef4444;
+    }
+
+    /* ===== NAV SECTION HEADERS ===== */
+    .nav-section-header {
+        color: #64748b;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 16px 16px 6px 16px;
+        margin: 0;
+    }
+
+    /* ===== ROLE BADGE ENHANCED ===== */
+    .role-badge-compact {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .role-badge-compact.admin {
+        background: rgba(249, 115, 22, 0.15);
+        color: #f97316;
+    }
+
+    .role-badge-compact.operations {
+        background: rgba(59, 130, 246, 0.15);
+        color: #3b82f6;
+    }
+
+    .role-badge-compact.finance {
+        background: rgba(34, 197, 94, 0.15);
+        color: #22c55e;
+    }
+
+    /* ===== SIDEBAR FOOTER ===== */
+    .sidebar-footer {
+        text-align: center;
+        padding: 12px;
+        border-top: 1px solid #334155;
+        margin-top: 8px;
+    }
+
+    .sidebar-footer .version {
+        color: #475569;
+        font-size: 10px;
+    }
+
+    .sidebar-footer .tech {
+        color: #f97316;
+        font-size: 10px;
+        font-weight: 500;
     }
 
     /* ===== MAIN CONTENT AREA ===== */
@@ -5409,27 +5485,27 @@ def render_access_denied(required_roles=None):
 # If "roles" is not specified, item is visible to all roles
 MENU_GROUPS = {
     "MAIN": [
-        {"name": "Dashboard", "icon": "⊞", "key": "dashboard"},  # All roles
+        {"name": "Dashboard", "icon": "▣", "key": "dashboard"},  # All roles
     ],
     "INVENTORY": [
-        {"name": "Assets", "icon": "☐", "key": "assets"},  # All roles
-        {"name": "Add Asset", "icon": "+", "key": "add_asset", "roles": ["admin", "operations"]},  # Finance cannot create
-        {"name": "Quick Actions", "icon": "↻", "key": "quick_actions", "roles": ["admin", "operations"]},  # Finance cannot do actions
+        {"name": "Assets", "icon": "▢", "key": "assets"},  # All roles
+        {"name": "Add Asset", "icon": "＋", "key": "add_asset", "roles": ["admin", "operations"]},  # Finance cannot create
+        {"name": "Quick Actions", "icon": "⟲", "key": "quick_actions", "roles": ["admin", "operations"]},  # Finance cannot do actions
     ],
     "OPERATIONS": [
-        {"name": "Assignments", "icon": "≡", "key": "assignments"},  # All roles
+        {"name": "Assignments", "icon": "☰", "key": "assignments"},  # All roles
         {"name": "Issues & Repairs", "icon": "⚙", "key": "issues", "roles": ["admin", "operations"]},  # Finance cannot do repairs
-        {"name": "Clients", "icon": "◉", "key": "clients"},  # All roles
+        {"name": "Clients", "icon": "◈", "key": "clients"},  # All roles
     ],
     "BILLING": [
         {"name": "Billing", "icon": "₹", "key": "billing", "roles": ["admin", "finance"]},  # Finance and Admin only
     ],
     "REPORTS": [
-        {"name": "Reports", "icon": "◫", "key": "reports"},  # All roles - reporting only
-        {"name": "Activity Log", "icon": "◉", "key": "activity_log"},  # All roles - view based on role
+        {"name": "Reports", "icon": "▤", "key": "reports"},  # All roles - reporting only
+        {"name": "Activity Log", "icon": "◷", "key": "activity_log"},  # All roles - view based on role
     ],
     "SYSTEM": [
-        {"name": "Import/Export", "icon": "↔", "key": "import_export", "roles": ["admin", "operations"]},  # Admin and Operations
+        {"name": "Import/Export", "icon": "⇄", "key": "import_export", "roles": ["admin", "operations"]},  # Admin and Operations
         {"name": "User Management", "icon": "◉", "key": "users", "roles": ["admin"]},  # Admin only
         {"name": "Settings", "icon": "⚙", "key": "settings", "roles": ["admin"]},  # Admin only
     ],
@@ -5486,48 +5562,43 @@ else:
     api = get_airtable_api()
     db_connected = api is not None
 
-# Sidebar brand header
+# ============================================
+# PROFESSIONAL SIDEBAR NAVIGATION
+# ============================================
+
+# Brand Header
 st.sidebar.markdown("""
 <div class="sidebar-brand">
-    <img src="https://cdn-media.nxtby.com/media/logo/stores/1/nxtby_orange_1.png" alt="Nxtby.com" style="height: 32px; margin-bottom: 4px;">
+    <img src="https://cdn-media.nxtby.com/media/logo/stores/1/nxtby_orange_1.png" alt="Nxtby.com">
     <p>Asset Management</p>
 </div>
 """, unsafe_allow_html=True)
 
-# Connection status
-if db_connected:
-    st.sidebar.markdown("""
-    <div class="connection-status status-connected">
-        ● Connected
-    </div>
-    """, unsafe_allow_html=True)
-else:
-    st.sidebar.markdown("""
-    <div class="connection-status status-disconnected">
-        ○ Not Connected
-    </div>
-    """, unsafe_allow_html=True)
-
-# User Info & Logout
+# User Info & Role
 user_display_name = st.session_state.user_full_name or st.session_state.username
 user_role = st.session_state.user_role or "operations"
-role_display = USER_ROLES.get(user_role, {}).get('name', user_role.title())
+role_config = USER_ROLES[user_role]
+
+# Connection status (compact)
+connection_html = """<span class="connection-status status-connected">● Online</span>""" if db_connected else """<span class="connection-status status-disconnected">○ Offline</span>"""
 
 st.sidebar.markdown(f"""
-<div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-            padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-    <div style="color: #F97316; font-weight: 600; font-size: 0.9rem;">
-        Welcome, {user_display_name}
+<div class="user-info-card">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+        <div>
+            <div class="user-name">{user_display_name}</div>
+            <div class="user-role">{role_config['description']}</div>
+        </div>
+        <span class="role-badge-compact {user_role}">{role_config['name']}</span>
     </div>
-    <div style="color: #94a3b8; font-size: 0.8rem; margin-top: 4px;">
-        Role: {role_display}
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        {connection_html}
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# Logout button
+# Logout button (compact)
 if st.sidebar.button("Sign Out", key="logout_btn", use_container_width=True):
-    # Log logout activity before clearing session
     log_activity_event(
         action_type="USER_LOGOUT",
         category="authentication",
@@ -5535,21 +5606,8 @@ if st.sidebar.button("Sign Out", key="logout_btn", use_container_width=True):
         description=f"User signed out: {st.session_state.username}",
         success=True
     )
-    # Invalidate session (server-side) and clear state
     logout_user()
     safe_rerun()
-
-# Show role description
-role_config = USER_ROLES[st.session_state.user_role]
-role_class = f"role-{st.session_state.user_role}"
-st.sidebar.markdown(f"""
-<div class="role-badge {role_class}" style="margin: 8px 16px 16px 16px;">
-    {role_config['name']}
-</div>
-<p style="margin: 0 16px 8px 16px; font-size: 0.75rem; color: #64748b;">
-    {role_config['description']}
-</p>
-""", unsafe_allow_html=True)
 
 # Navigation menu with groups - filter by role and collect button clicks
 nav_clicked = None
@@ -5557,23 +5615,24 @@ current_role = st.session_state.user_role
 visible_menu = get_visible_menu_items(current_role)
 
 for group_name, items in visible_menu.items():
-    st.sidebar.markdown(f"### {group_name}")
+    # Compact section header
+    st.sidebar.markdown(f'<div class="nav-section-header">{group_name}</div>', unsafe_allow_html=True)
 
     for item in items:
         is_active = st.session_state.current_page == item["name"]
         is_primary_action = item["name"] == ROLE_PRIMARY_ACTION.get(current_role)
 
-        # Primary action indicator shown above the button (subtle accent line)
+        # Primary action indicator (subtle)
         if is_primary_action and not is_active:
             st.sidebar.markdown(
-                '<div style="height: 2px; background: linear-gradient(90deg, #f97316 0%, transparent 100%); margin: 4px 16px 2px 16px; border-radius: 1px;"></div>',
+                '<div style="height: 2px; background: linear-gradient(90deg, #f97316 0%, transparent 100%); margin: 2px 16px 2px 16px; border-radius: 1px;"></div>',
                 unsafe_allow_html=True
             )
 
         if st.sidebar.button(
             f"{item['icon']}  {item['name']}",
             key=f"nav_{item['key']}_{current_role}",
-                        type="primary" if is_active else "secondary",
+            type="primary" if is_active else "secondary",
             help="Recommended for your role" if is_primary_action and not is_active else None
         ):
             nav_clicked = item["name"]
@@ -10923,10 +10982,9 @@ elif page == "Settings":
                 st.markdown(f"**{from_display}** → _(terminal state)_")
 
 # Footer
-st.sidebar.markdown("---")
 st.sidebar.markdown("""
-<div style="text-align: center; padding: 12px 10px;">
-    <small style="color: #64748b;">Asset Management v2.4</small><br>
-    <small style="color: #f97316; font-weight: 500;">Streamlit + MySQL</small>
+<div class="sidebar-footer">
+    <div class="version">Asset Management v2.4</div>
+    <div class="tech">Streamlit + MySQL</div>
 </div>
 """, unsafe_allow_html=True)
