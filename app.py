@@ -6974,12 +6974,221 @@ elif page == "Assets":
         </div>
         """, unsafe_allow_html=True)
 
-        # Display table with pagination
+        # ========== BULK OPERATIONS SECTION ==========
+        # Initialize session state for bulk selection
+        if 'bulk_selected_assets' not in st.session_state:
+            st.session_state.bulk_selected_assets = []
+
+        # Display columns for table
         display_cols = ["Serial Number", "Asset Type", "Brand", "Model", "RAM (GB)", "Storage (GB)",
                        "Current Status", "Current Location", "Office License Key", "Reuse Count"]
         available_cols = [c for c in display_cols if c in filtered_df.columns]
 
-        if available_cols:
+        if available_cols and len(filtered_df) > 0:
+            # Create asset options for multiselect
+            asset_options = []
+            asset_map = {}  # Map display label to asset data
+            for _, row in filtered_df.iterrows():
+                serial = row.get('Serial Number', '')
+                asset_type = row.get('Asset Type', '')
+                brand = row.get('Brand', '')
+                status = row.get('Current Status', '')
+                asset_id = row.get('_id', '')
+                label = f"{serial} | {asset_type} | {brand} | {status}"
+                asset_options.append(label)
+                asset_map[label] = {'_id': asset_id, 'serial': serial, 'status': status, 'row': row}
+
+            # Bulk selection multiselect
+            st.markdown("""
+            <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb;">
+                Bulk Operations
+            </div>
+            """, unsafe_allow_html=True)
+
+            selected_assets = st.multiselect(
+                "Select Assets for Bulk Action",
+                options=asset_options,
+                default=[],
+                key="bulk_asset_select",
+                help="Select multiple assets to perform bulk actions"
+            )
+
+            # Show bulk operations panel if assets selected
+            if selected_assets:
+                selected_count = len(selected_assets)
+
+                st.markdown(f"""
+                <div style="background: #eff6ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                    <strong style="color: #1e40af;">📦 {selected_count} asset(s) selected</strong>
+                </div>
+                """, unsafe_allow_html=True)
+
+                # Action selection
+                bulk_col1, bulk_col2 = st.columns(2)
+
+                with bulk_col1:
+                    bulk_action = st.selectbox(
+                        "Bulk Action",
+                        ["Select Action...", "Change Status", "Assign to Client"],
+                        key="bulk_action_select"
+                    )
+
+                # Action-specific options
+                if bulk_action == "Change Status":
+                    with bulk_col2:
+                        new_status = st.selectbox("New Status", ASSET_STATUSES, key="bulk_new_status")
+
+                    # Show current statuses of selected assets
+                    current_statuses = set()
+                    for label in selected_assets:
+                        current_statuses.add(asset_map[label]['status'])
+                    st.caption(f"Current statuses: {', '.join(current_statuses)}")
+
+                    if st.button(f"🔄 Change Status for {selected_count} Assets", type="primary", use_container_width=True):
+                        with st.spinner(f"Updating {selected_count} assets..."):
+                            success_count = 0
+                            fail_count = 0
+                            errors = []
+
+                            for label in selected_assets:
+                                asset_data = asset_map[label]
+                                asset_id = asset_data['_id']
+                                serial = asset_data['serial']
+
+                                try:
+                                    success, error_msg = update_asset_status(asset_id, new_status)
+                                    if success:
+                                        success_count += 1
+                                    else:
+                                        fail_count += 1
+                                        errors.append(f"{serial}: {error_msg}")
+                                except Exception as e:
+                                    fail_count += 1
+                                    errors.append(f"{serial}: {str(e)}")
+
+                            # Log bulk action
+                            log_activity_event(
+                                action_type="BULK_STATUS_CHANGE",
+                                category="bulk_operation",
+                                user_role=st.session_state.user_role,
+                                description=f"Bulk status change to {new_status} for {success_count} assets",
+                                success=success_count > 0,
+                                metadata={"total": selected_count, "success": success_count, "failed": fail_count}
+                            )
+
+                            if success_count > 0:
+                                st.success(f"✅ Successfully updated {success_count} assets to {new_status}")
+                            if fail_count > 0:
+                                st.warning(f"⚠️ {fail_count} assets failed to update")
+                                with st.expander("View errors"):
+                                    for err in errors[:10]:
+                                        st.write(f"• {err}")
+
+                            # Clear selection and refresh
+                            st.session_state.bulk_asset_select = []
+                            safe_rerun()
+
+                elif bulk_action == "Assign to Client":
+                    # Get client list
+                    if not clients_df.empty and "Client Name" in clients_df.columns:
+                        client_list = sorted(clients_df["Client Name"].dropna().unique().tolist())
+                    else:
+                        client_list = []
+
+                    with bulk_col2:
+                        if client_list:
+                            selected_client = st.selectbox("Select Client", client_list, key="bulk_client_select")
+                        else:
+                            st.warning("No clients available")
+                            selected_client = None
+
+                    # Check if selected assets are assignable (IN_STOCK_WORKING)
+                    assignable_count = 0
+                    non_assignable = []
+                    for label in selected_assets:
+                        if asset_map[label]['status'] == "IN_STOCK_WORKING":
+                            assignable_count += 1
+                        else:
+                            non_assignable.append(asset_map[label]['serial'])
+
+                    if non_assignable:
+                        st.warning(f"⚠️ {len(non_assignable)} asset(s) not in IN_STOCK_WORKING status will be skipped")
+
+                    if selected_client and assignable_count > 0:
+                        # Optional shipment details
+                        ship_col1, ship_col2 = st.columns(2)
+                        with ship_col1:
+                            shipment_date = st.date_input("Shipment Date", value=date.today(), key="bulk_ship_date")
+                        with ship_col2:
+                            tracking_number = st.text_input("Tracking Number (optional)", key="bulk_tracking")
+
+                        if st.button(f"📦 Assign {assignable_count} Assets to {selected_client}", type="primary", use_container_width=True):
+                            with st.spinner(f"Assigning {assignable_count} assets..."):
+                                success_count = 0
+                                fail_count = 0
+                                errors = []
+
+                                for label in selected_assets:
+                                    asset_data = asset_map[label]
+                                    if asset_data['status'] != "IN_STOCK_WORKING":
+                                        continue
+
+                                    asset_id = asset_data['_id']
+                                    serial = asset_data['serial']
+
+                                    try:
+                                        # Update status to WITH_CLIENT
+                                        success, error_msg = update_asset_status(asset_id, "WITH_CLIENT", selected_client)
+                                        if success:
+                                            # Create assignment record
+                                            assignment_data = {
+                                                "Serial Number": serial,
+                                                "Client Name": selected_client,
+                                                "Assignment Name": f"{serial} → {selected_client}",
+                                                "Assignment Type": "Rental",
+                                                "Shipment Date": shipment_date.isoformat() if shipment_date else None,
+                                                "Tracking Number": tracking_number if tracking_number else None,
+                                                "Status": "Active"
+                                            }
+                                            create_assignment_record(assignment_data, user_role=st.session_state.user_role)
+                                            success_count += 1
+                                        else:
+                                            fail_count += 1
+                                            errors.append(f"{serial}: {error_msg}")
+                                    except Exception as e:
+                                        fail_count += 1
+                                        errors.append(f"{serial}: {str(e)}")
+
+                                # Log bulk action
+                                log_activity_event(
+                                    action_type="BULK_ASSIGNMENT",
+                                    category="bulk_operation",
+                                    user_role=st.session_state.user_role,
+                                    client_name=selected_client,
+                                    description=f"Bulk assignment of {success_count} assets to {selected_client}",
+                                    success=success_count > 0,
+                                    metadata={"total": assignable_count, "success": success_count, "failed": fail_count, "client": selected_client}
+                                )
+
+                                if success_count > 0:
+                                    st.success(f"✅ Successfully assigned {success_count} assets to {selected_client}")
+                                if fail_count > 0:
+                                    st.warning(f"⚠️ {fail_count} assets failed to assign")
+                                    with st.expander("View errors"):
+                                        for err in errors[:10]:
+                                            st.write(f"• {err}")
+
+                                # Clear selection and refresh
+                                st.session_state.bulk_asset_select = []
+                                safe_rerun()
+
+                # Clear selection button
+                if st.button("🗑️ Clear Selection", key="clear_bulk_selection"):
+                    st.session_state.bulk_asset_select = []
+                    safe_rerun()
+
+            st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+
             # Apply pagination to filtered data
             paginated_df = paginate_dataframe(filtered_df, "assets_table", show_controls=True)
 
