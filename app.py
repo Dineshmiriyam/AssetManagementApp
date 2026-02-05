@@ -9395,11 +9395,11 @@ elif page == "Import/Export":
                 display_cols = ['Serial Number', 'Asset Type', 'Brand', 'Model', 'Current Status', 'Current Location']
                 available_cols = [c for c in display_cols if c in export_df.columns]
                 if available_cols:
-                    st.dataframe(export_df[available_cols].head(10), use_container_width=True)
+                    st.dataframe(export_df[available_cols], use_container_width=True, height=400)
                 else:
                     # Fallback: show first 6 columns if column names don't match
-                    st.dataframe(export_df.iloc[:, :6].head(10), use_container_width=True)
-                st.caption(f"Showing first 10 of {len(export_df)} records")
+                    st.dataframe(export_df.iloc[:, :6], use_container_width=True, height=400)
+                st.caption(f"Total: {len(export_df)} records")
         else:
             st.warning("No assets found in the database to export.")
 
