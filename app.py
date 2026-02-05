@@ -9391,15 +9391,32 @@ elif page == "Import/Export":
             # Preview section
             st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
             with st.expander("👁 Preview Export Data", expanded=False):
+                # Entries limit selector
+                limit_col1, limit_col2, limit_col3 = st.columns([1, 2, 3])
+                with limit_col1:
+                    entries_options = [10, 25, 50, 100, "All"]
+                    selected_limit = st.selectbox(
+                        "Show",
+                        options=entries_options,
+                        index=0,
+                        key="export_preview_limit",
+                        label_visibility="visible"
+                    )
+                with limit_col2:
+                    st.markdown("<div style='padding-top: 32px; color: #6b7280;'>entries</div>", unsafe_allow_html=True)
+
                 # Select columns to show (using actual DB column names with display format)
                 display_cols = ['Serial Number', 'Asset Type', 'Brand', 'Model', 'Current Status', 'Current Location']
                 available_cols = [c for c in display_cols if c in export_df.columns]
-                if available_cols:
-                    st.dataframe(export_df[available_cols], use_container_width=True, height=400)
+
+                # Apply limit
+                if selected_limit == "All":
+                    preview_df = export_df[available_cols] if available_cols else export_df.iloc[:, :6]
                 else:
-                    # Fallback: show first 6 columns if column names don't match
-                    st.dataframe(export_df.iloc[:, :6], use_container_width=True, height=400)
-                st.caption(f"Total: {len(export_df)} records")
+                    preview_df = export_df[available_cols].head(selected_limit) if available_cols else export_df.iloc[:, :6].head(selected_limit)
+
+                st.dataframe(preview_df, use_container_width=True, height=400)
+                st.caption(f"Showing {len(preview_df)} of {len(export_df)} records")
         else:
             st.warning("No assets found in the database to export.")
 
