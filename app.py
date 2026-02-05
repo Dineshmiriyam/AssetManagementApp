@@ -3963,6 +3963,28 @@ st.markdown("""
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
     }
 
+    /* ===== HIDE NAVIGATION HELPER BUTTONS ===== */
+    .hidden-nav-buttons {
+        position: absolute !important;
+        left: -9999px !important;
+        top: -9999px !important;
+        width: 1px !important;
+        height: 1px !important;
+        overflow: hidden !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+
+    .hidden-nav-buttons * {
+        visibility: hidden !important;
+        height: 0 !important;
+        width: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -6288,35 +6310,36 @@ if page == "Dashboard":
         </style>
         """, unsafe_allow_html=True)
 
-        # Hidden buttons for KPI navigation (invisible but functional)
-        st.markdown("""<div style="position:absolute;left:-9999px;height:0;overflow:hidden;">""", unsafe_allow_html=True)
-        kbtn1, kbtn2, kbtn3, kbtn4, kbtn5 = st.columns(5)
-        with kbtn1:
-            if st.button("kpi_total_btn", key="kpi_total_nav"):
-                st.session_state.current_page = "Assets"
-                st.session_state.asset_filter = "All"
-                safe_rerun()
-        with kbtn2:
-            if st.button("kpi_deployed_btn", key="kpi_deployed_nav"):
-                st.session_state.current_page = "Assets"
-                st.session_state.asset_filter = "WITH_CLIENT"
-                safe_rerun()
-        with kbtn3:
-            if st.button("kpi_available_btn", key="kpi_available_nav"):
-                st.session_state.current_page = "Assets"
-                st.session_state.asset_filter = "IN_STOCK_WORKING"
-                safe_rerun()
-        with kbtn4:
-            if st.button("kpi_repair_btn", key="kpi_repair_nav"):
-                st.session_state.current_page = "Assets"
-                st.session_state.asset_filter = "WITH_VENDOR_REPAIR"
-                safe_rerun()
-        with kbtn5:
-            if st.button("kpi_returned_btn", key="kpi_returned_nav"):
-                st.session_state.current_page = "Assets"
-                st.session_state.asset_filter = "RETURNED_FROM_CLIENT"
-                safe_rerun()
-        st.markdown("""</div>""", unsafe_allow_html=True)
+        # Hidden buttons for KPI navigation - using container with hidden class
+        with st.container():
+            st.markdown('<div class="hidden-nav-buttons">', unsafe_allow_html=True)
+            kbtn1, kbtn2, kbtn3, kbtn4, kbtn5 = st.columns(5)
+            with kbtn1:
+                if st.button("​", key="kpi_total_nav"):
+                    st.session_state.current_page = "Assets"
+                    st.session_state.asset_filter = "All"
+                    safe_rerun()
+            with kbtn2:
+                if st.button("​", key="kpi_deployed_nav"):
+                    st.session_state.current_page = "Assets"
+                    st.session_state.asset_filter = "WITH_CLIENT"
+                    safe_rerun()
+            with kbtn3:
+                if st.button("​", key="kpi_available_nav"):
+                    st.session_state.current_page = "Assets"
+                    st.session_state.asset_filter = "IN_STOCK_WORKING"
+                    safe_rerun()
+            with kbtn4:
+                if st.button("​", key="kpi_repair_nav"):
+                    st.session_state.current_page = "Assets"
+                    st.session_state.asset_filter = "WITH_VENDOR_REPAIR"
+                    safe_rerun()
+            with kbtn5:
+                if st.button("​", key="kpi_returned_nav"):
+                    st.session_state.current_page = "Assets"
+                    st.session_state.asset_filter = "RETURNED_FROM_CLIENT"
+                    safe_rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
 
         # Quick Actions Section
         st.markdown("""
@@ -6455,31 +6478,26 @@ if page == "Dashboard":
                 </div>
                 """, unsafe_allow_html=True)
 
-            # Hidden buttons for SLA navigation
-            st.markdown("""<div style="position:absolute;left:-9999px;height:0;overflow:hidden;">""", unsafe_allow_html=True)
-            sla_btn1, sla_btn2, sla_btn3 = st.columns(3)
-            with sla_btn1:
-                st.markdown('<div id="sla-critical-btn">', unsafe_allow_html=True)
-                if st.button("sla_critical", key="sla_critical_nav"):
-                    st.session_state.current_page = "Assets"
-                    st.session_state.sla_filter = "critical"
-                    safe_rerun()
+            # Hidden buttons for SLA navigation - using container with hidden class
+            with st.container():
+                st.markdown('<div class="hidden-nav-buttons">', unsafe_allow_html=True)
+                sla_btn1, sla_btn2, sla_btn3 = st.columns(3)
+                with sla_btn1:
+                    if st.button("​", key="sla_critical_nav", help="SLA Critical"):
+                        st.session_state.current_page = "Assets"
+                        st.session_state.sla_filter = "critical"
+                        safe_rerun()
+                with sla_btn2:
+                    if st.button("​", key="sla_warning_nav", help="SLA Warning"):
+                        st.session_state.current_page = "Assets"
+                        st.session_state.sla_filter = "warning"
+                        safe_rerun()
+                with sla_btn3:
+                    if st.button("​", key="sla_ok_nav", help="SLA OK"):
+                        st.session_state.current_page = "Assets"
+                        st.session_state.sla_filter = "ok"
+                        safe_rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
-            with sla_btn2:
-                st.markdown('<div id="sla-warning-btn">', unsafe_allow_html=True)
-                if st.button("sla_warning", key="sla_warning_nav"):
-                    st.session_state.current_page = "Assets"
-                    st.session_state.sla_filter = "warning"
-                    safe_rerun()
-                st.markdown('</div>', unsafe_allow_html=True)
-            with sla_btn3:
-                st.markdown('<div id="sla-ok-btn">', unsafe_allow_html=True)
-                if st.button("sla_ok", key="sla_ok_nav"):
-                    st.session_state.current_page = "Assets"
-                    st.session_state.sla_filter = "ok"
-                    safe_rerun()
-                st.markdown('</div>', unsafe_allow_html=True)
-            st.markdown("""</div>""", unsafe_allow_html=True)
 
         if role_config["show_billing"]:
             # Billing Insights for Finance and Admin - using centralized calculations
@@ -6525,30 +6543,25 @@ if page == "Dashboard":
                     </div>
                     """, unsafe_allow_html=True)
 
-                # Hidden buttons for Finance navigation
-                st.markdown("""<div style="position:absolute;left:-9999px;height:0;overflow:hidden;">""", unsafe_allow_html=True)
-                fin_btn1, fin_btn2, fin_btn3 = st.columns(3)
-                with fin_btn1:
-                    st.markdown('<div id="billable-assets-btn">', unsafe_allow_html=True)
-                    if st.button("billable_assets", key="billable_assets_nav"):
-                        st.session_state.current_page = "Assets"
-                        st.session_state.asset_filter = "WITH_CLIENT"
-                        safe_rerun()
+                # Hidden buttons for Finance navigation - using container with hidden class
+                with st.container():
+                    st.markdown('<div class="hidden-nav-buttons">', unsafe_allow_html=True)
+                    fin_btn1, fin_btn2, fin_btn3 = st.columns(3)
+                    with fin_btn1:
+                        if st.button("​", key="billable_assets_nav"):
+                            st.session_state.current_page = "Assets"
+                            st.session_state.asset_filter = "WITH_CLIENT"
+                            safe_rerun()
+                    with fin_btn2:
+                        if st.button("​", key="revenue_nav"):
+                            st.session_state.current_page = "Billing"
+                            safe_rerun()
+                    with fin_btn3:
+                        if st.button("​", key="paused_nav"):
+                            st.session_state.current_page = "Assets"
+                            st.session_state.billing_paused_filter = True
+                            safe_rerun()
                     st.markdown('</div>', unsafe_allow_html=True)
-                with fin_btn2:
-                    st.markdown('<div id="revenue-btn">', unsafe_allow_html=True)
-                    if st.button("revenue", key="revenue_nav"):
-                        st.session_state.current_page = "Billing"
-                        safe_rerun()
-                    st.markdown('</div>', unsafe_allow_html=True)
-                with fin_btn3:
-                    st.markdown('<div id="paused-btn">', unsafe_allow_html=True)
-                    if st.button("paused", key="paused_nav"):
-                        st.session_state.current_page = "Assets"
-                        st.session_state.billing_paused_filter = True
-                        safe_rerun()
-                    st.markdown('</div>', unsafe_allow_html=True)
-                st.markdown("""</div>""", unsafe_allow_html=True)
 
             elif current_role == "admin":
                 with insight_cols[3]:
@@ -6561,14 +6574,13 @@ if page == "Dashboard":
                     </div>
                     """, unsafe_allow_html=True)
 
-                # Hidden button for Admin revenue navigation
-                st.markdown("""<div style="position:absolute;left:-9999px;height:0;overflow:hidden;">""", unsafe_allow_html=True)
-                st.markdown('<div id="admin-revenue-btn">', unsafe_allow_html=True)
-                if st.button("admin_revenue", key="admin_revenue_nav"):
-                    st.session_state.current_page = "Billing"
-                    safe_rerun()
-                st.markdown('</div>', unsafe_allow_html=True)
-                st.markdown("""</div>""", unsafe_allow_html=True)
+                # Hidden button for Admin revenue navigation - using container with hidden class
+                with st.container():
+                    st.markdown('<div class="hidden-nav-buttons">', unsafe_allow_html=True)
+                    if st.button("​", key="admin_revenue_nav"):
+                        st.session_state.current_page = "Billing"
+                        safe_rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('</div>', unsafe_allow_html=True)
 
