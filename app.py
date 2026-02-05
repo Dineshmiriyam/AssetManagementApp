@@ -17,7 +17,6 @@ import traceback
 from functools import wraps
 from dotenv import load_dotenv
 from streamlit_plotly_events import plotly_events
-import streamlit.components.v1 as components
 
 # Load environment variables
 load_dotenv()
@@ -3963,138 +3962,21 @@ st.markdown("""
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
     }
 
-    /* ===== HIDE NAVIGATION HELPER BUTTONS ===== */
-    .hidden-nav-buttons {
-        position: absolute !important;
-        left: -9999px !important;
-        top: -9999px !important;
-        width: 1px !important;
-        height: 1px !important;
-        overflow: hidden !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
+    /* Hide Plotly modebar using CSS */
+    .modebar-container, .modebar, .modebar-group, [class*="modebar"] {
+        display: none !important;
     }
 
-    .hidden-nav-buttons * {
+    /* Hide any stray iframes with zero height */
+    iframe[height="0"] {
+        display: none !important;
         visibility: hidden !important;
-        height: 0 !important;
-        width: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        border: none !important;
+        position: absolute !important;
+        left: -9999px !important;
     }
 
 </style>
 """, unsafe_allow_html=True)
-
-# JavaScript to hide Plotly modebar and setup KPI card clicks
-components.html("""
-<script>
-(function() {
-    const parentDoc = window.parent.document;
-
-    function hideModebar() {
-        const modebars = parentDoc.querySelectorAll('.modebar-container, .modebar, .modebar-group, [class*="modebar"]');
-        modebars.forEach(el => el.style.display = 'none');
-    }
-
-    function hideKpiButtons() {
-        // Hide all buttons that contain "kpi_" in their text
-        const allButtons = parentDoc.querySelectorAll('button');
-        allButtons.forEach(btn => {
-            const text = btn.textContent.trim();
-            if (text.includes('kpi_') && text.includes('_btn')) {
-                // Hide the button's parent container completely
-                let container = btn.closest('[data-testid="stBaseButton-secondary"]') ||
-                               btn.closest('.stButton') ||
-                               btn.parentElement;
-                if (container) {
-                    container.style.cssText = 'display:none!important;height:0!important;overflow:hidden!important;';
-                }
-                // Also hide the column containing it
-                let column = btn.closest('[data-testid="column"]');
-                if (column) {
-                    column.style.cssText = 'display:none!important;height:0!important;overflow:hidden!important;';
-                }
-            }
-        });
-
-        // Hide the entire row containing kpi buttons
-        const horizontalBlocks = parentDoc.querySelectorAll('[data-testid="stHorizontalBlock"]');
-        horizontalBlocks.forEach(block => {
-            const buttons = block.querySelectorAll('button');
-            let hasKpiBtn = false;
-            buttons.forEach(btn => {
-                if (btn.textContent.includes('kpi_') && btn.textContent.includes('_btn')) {
-                    hasKpiBtn = true;
-                }
-            });
-            if (hasKpiBtn) {
-                block.style.cssText = 'display:none!important;height:0!important;overflow:hidden!important;';
-            }
-        });
-    }
-
-    function setupKpiCards() {
-        const kpiCards = parentDoc.querySelectorAll('.kpi-cards-row .kpi-card[data-kpi]');
-        const btnTextMap = {
-            'total': 'kpi_total_btn',
-            'deployed': 'kpi_deployed_btn',
-            'available': 'kpi_available_btn',
-            'repair': 'kpi_repair_btn',
-            'returned': 'kpi_returned_btn'
-        };
-
-        kpiCards.forEach(card => {
-            if (card.dataset.ready === 'true') return;
-
-            const kpiType = card.dataset.kpi;
-            const btnText = btnTextMap[kpiType];
-            if (!btnText) return;
-
-            // Find the button by its text content
-            const allButtons = parentDoc.querySelectorAll('button');
-            let targetBtn = null;
-            allButtons.forEach(btn => {
-                if (btn.textContent.trim() === btnText) {
-                    targetBtn = btn;
-                }
-            });
-
-            if (!targetBtn) return;
-
-            card.dataset.ready = 'true';
-            card.style.cursor = 'pointer';
-            card.setAttribute('tabindex', '0');
-            card.setAttribute('role', 'button');
-
-            card.onclick = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                targetBtn.click();
-            };
-            card.onkeydown = (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    targetBtn.click();
-                }
-            };
-        });
-    }
-
-    // Run immediately
-    hideModebar();
-    hideKpiButtons();
-    setupKpiCards();
-
-    // Keep running
-    setInterval(hideModebar, 500);
-    setInterval(hideKpiButtons, 100);
-    setInterval(setupKpiCards, 300);
-})();
-</script>
-""", height=0)
 
 # Airtable Configuration (credentials from environment only)
 AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY", "")
@@ -5608,6 +5490,31 @@ if not st.session_state.authenticated:
 if "current_page" not in st.session_state:
     st.session_state.current_page = "Dashboard"
 
+# Handle query parameter navigation (for clickable KPI cards)
+query_params = st.query_params
+if "nav" in query_params:
+    nav_target = query_params.get("nav")
+    nav_filter = query_params.get("filter", None)
+    sla_filter = query_params.get("sla", None)
+    billing_paused = query_params.get("billing_paused", None)
+
+    # Clear query params immediately to prevent loops
+    st.query_params.clear()
+
+    # Set navigation state
+    if nav_target == "assets":
+        st.session_state.current_page = "Assets"
+        if nav_filter:
+            st.session_state.asset_filter = nav_filter
+        if sla_filter:
+            st.session_state.sla_filter = sla_filter
+        if billing_paused == "true":
+            st.session_state.billing_paused_filter = True
+    elif nav_target == "billing":
+        st.session_state.current_page = "Billing"
+
+    st.rerun()
+
 # User role is now set from login (no need for default)
 
 # Check API/Database connection first
@@ -6268,30 +6175,30 @@ if page == "Dashboard":
         </div>
         """, unsafe_allow_html=True)
 
-        # KPI Cards - Cards only (no buttons in columns)
+        # KPI Cards - Clickable with query param navigation
         st.markdown(f"""
         <div class="kpi-cards-row">
-            <div class="kpi-card neutral" data-kpi="total" onclick="document.querySelector('#kpi-btn-total').click()">
+            <div class="kpi-card neutral" onclick="window.location.href=window.location.pathname+'?nav=assets&filter=All'">
                 <div class="kpi-card-title">TOTAL ASSETS</div>
                 <div class="kpi-card-value">{total}</div>
                 <div class="kpi-card-label">All inventory</div>
             </div>
-            <div class="kpi-card blue" data-kpi="deployed" onclick="document.querySelector('#kpi-btn-deployed').click()">
+            <div class="kpi-card blue" onclick="window.location.href=window.location.pathname+'?nav=assets&filter=WITH_CLIENT'">
                 <div class="kpi-card-title">DEPLOYED</div>
                 <div class="kpi-card-value">{with_client}</div>
                 <div class="kpi-card-label">With clients</div>
             </div>
-            <div class="kpi-card green" data-kpi="available" onclick="document.querySelector('#kpi-btn-available').click()">
+            <div class="kpi-card green" onclick="window.location.href=window.location.pathname+'?nav=assets&filter=IN_STOCK_WORKING'">
                 <div class="kpi-card-title">AVAILABLE</div>
                 <div class="kpi-card-value">{in_stock}</div>
                 <div class="kpi-card-label">Ready to deploy</div>
             </div>
-            <div class="kpi-card amber" data-kpi="repair" onclick="document.querySelector('#kpi-btn-repair').click()">
+            <div class="kpi-card amber" onclick="window.location.href=window.location.pathname+'?nav=assets&filter=WITH_VENDOR_REPAIR'">
                 <div class="kpi-card-title">IN REPAIR</div>
                 <div class="kpi-card-value">{under_repair}</div>
                 <div class="kpi-card-label">At vendor</div>
             </div>
-            <div class="kpi-card red" data-kpi="returned" onclick="document.querySelector('#kpi-btn-returned').click()">
+            <div class="kpi-card red" onclick="window.location.href=window.location.pathname+'?nav=assets&filter=RETURNED_FROM_CLIENT'">
                 <div class="kpi-card-title">RETURNED</div>
                 <div class="kpi-card-value">{returned}</div>
                 <div class="kpi-card-label">Needs review</div>
@@ -6309,37 +6216,6 @@ if page == "Dashboard":
         }}
         </style>
         """, unsafe_allow_html=True)
-
-        # Hidden buttons for KPI navigation - using container with hidden class
-        with st.container():
-            st.markdown('<div class="hidden-nav-buttons">', unsafe_allow_html=True)
-            kbtn1, kbtn2, kbtn3, kbtn4, kbtn5 = st.columns(5)
-            with kbtn1:
-                if st.button("​", key="kpi_total_nav"):
-                    st.session_state.current_page = "Assets"
-                    st.session_state.asset_filter = "All"
-                    safe_rerun()
-            with kbtn2:
-                if st.button("​", key="kpi_deployed_nav"):
-                    st.session_state.current_page = "Assets"
-                    st.session_state.asset_filter = "WITH_CLIENT"
-                    safe_rerun()
-            with kbtn3:
-                if st.button("​", key="kpi_available_nav"):
-                    st.session_state.current_page = "Assets"
-                    st.session_state.asset_filter = "IN_STOCK_WORKING"
-                    safe_rerun()
-            with kbtn4:
-                if st.button("​", key="kpi_repair_nav"):
-                    st.session_state.current_page = "Assets"
-                    st.session_state.asset_filter = "WITH_VENDOR_REPAIR"
-                    safe_rerun()
-            with kbtn5:
-                if st.button("​", key="kpi_returned_nav"):
-                    st.session_state.current_page = "Assets"
-                    st.session_state.asset_filter = "RETURNED_FROM_CLIENT"
-                    safe_rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
 
         # Quick Actions Section
         st.markdown("""
@@ -6446,7 +6322,7 @@ if page == "Dashboard":
                 critical_bg = "#fef2f2" if sla_counts['critical'] > 0 else "#ffffff"
                 critical_border = "#fecaca" if sla_counts['critical'] > 0 else "#e5e7eb"
                 st.markdown(f"""
-                <div class="metric-card clickable-card" style="background: {critical_bg}; border: 1px solid {critical_border}; border-left: 4px solid #dc2626; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="document.querySelector('#sla-critical-btn button').click()">
+                <div class="metric-card clickable-card" style="background: {critical_bg}; border: 1px solid {critical_border}; border-left: 4px solid #dc2626; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="window.location.href=window.location.pathname+'?nav=assets&sla=critical'">
                     <div style="font-size: 11px; font-weight: 600; color: #dc2626; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">SLA Critical</div>
                     <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{sla_counts['critical']}</div>
                     <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Exceeds threshold</div>
@@ -6458,7 +6334,7 @@ if page == "Dashboard":
                 warning_bg = "#fffbeb" if sla_counts['warning'] > 0 else "#ffffff"
                 warning_border = "#fde68a" if sla_counts['warning'] > 0 else "#e5e7eb"
                 st.markdown(f"""
-                <div class="metric-card clickable-card" style="background: {warning_bg}; border: 1px solid {warning_border}; border-left: 4px solid #f59e0b; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="document.querySelector('#sla-warning-btn button').click()">
+                <div class="metric-card clickable-card" style="background: {warning_bg}; border: 1px solid {warning_border}; border-left: 4px solid #f59e0b; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="window.location.href=window.location.pathname+'?nav=assets&sla=warning'">
                     <div style="font-size: 11px; font-weight: 600; color: #d97706; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">SLA Warning</div>
                     <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{sla_counts['warning']}</div>
                     <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Approaching limit</div>
@@ -6470,34 +6346,13 @@ if page == "Dashboard":
                 ok_bg = "#f0fdf4" if sla_counts['ok'] > 0 else "#ffffff"
                 ok_border = "#bbf7d0" if sla_counts['ok'] > 0 else "#e5e7eb"
                 st.markdown(f"""
-                <div class="metric-card clickable-card" style="background: {ok_bg}; border: 1px solid {ok_border}; border-left: 4px solid #16a34a; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="document.querySelector('#sla-ok-btn button').click()">
+                <div class="metric-card clickable-card" style="background: {ok_bg}; border: 1px solid {ok_border}; border-left: 4px solid #16a34a; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="window.location.href=window.location.pathname+'?nav=assets&sla=ok'">
                     <div style="font-size: 11px; font-weight: 600; color: #16a34a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">SLA OK</div>
                     <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{sla_counts['ok']}</div>
                     <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Within target</div>
                     <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click to view →</div>
                 </div>
                 """, unsafe_allow_html=True)
-
-            # Hidden buttons for SLA navigation - using container with hidden class
-            with st.container():
-                st.markdown('<div class="hidden-nav-buttons">', unsafe_allow_html=True)
-                sla_btn1, sla_btn2, sla_btn3 = st.columns(3)
-                with sla_btn1:
-                    if st.button("​", key="sla_critical_nav", help="SLA Critical"):
-                        st.session_state.current_page = "Assets"
-                        st.session_state.sla_filter = "critical"
-                        safe_rerun()
-                with sla_btn2:
-                    if st.button("​", key="sla_warning_nav", help="SLA Warning"):
-                        st.session_state.current_page = "Assets"
-                        st.session_state.sla_filter = "warning"
-                        safe_rerun()
-                with sla_btn3:
-                    if st.button("​", key="sla_ok_nav", help="SLA OK"):
-                        st.session_state.current_page = "Assets"
-                        st.session_state.sla_filter = "ok"
-                        safe_rerun()
-                st.markdown('</div>', unsafe_allow_html=True)
 
         if role_config["show_billing"]:
             # Billing Insights for Finance and Admin - using centralized calculations
@@ -6512,7 +6367,7 @@ if page == "Dashboard":
             if current_role == "finance":
                 with insight_cols[0]:
                     st.markdown(f"""
-                    <div class="metric-card clickable-card" style="background: #ffffff; border: 1px solid #e5e7eb; border-left: 4px solid #6366f1; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="document.querySelector('#billable-assets-btn button').click()">
+                    <div class="metric-card clickable-card" style="background: #ffffff; border: 1px solid #e5e7eb; border-left: 4px solid #6366f1; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="window.location.href=window.location.pathname+'?nav=assets&filter=WITH_CLIENT'">
                         <div style="font-size: 11px; font-weight: 600; color: #6366f1; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Billable Assets</div>
                         <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{billable_count}</div>
                         <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Currently deployed</div>
@@ -6522,7 +6377,7 @@ if page == "Dashboard":
 
                 with insight_cols[1]:
                     st.markdown(f"""
-                    <div class="metric-card clickable-card" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="document.querySelector('#revenue-btn button').click()">
+                    <div class="metric-card clickable-card" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="window.location.href=window.location.pathname+'?nav=billing'">
                         <div style="font-size: 11px; font-weight: 600; color: #16a34a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Est. Monthly Revenue</div>
                         <div style="font-size: 36px; font-weight: 700; color: #16a34a; line-height: 1;">₹{estimated_revenue:,}</div>
                         <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">@ ₹{monthly_rate:,}/asset</div>
@@ -6535,7 +6390,7 @@ if page == "Dashboard":
                     paused_bg = "#fffbeb" if paused_count > 0 else "#ffffff"
                     paused_border = "#fde68a" if paused_count > 0 else "#e5e7eb"
                     st.markdown(f"""
-                    <div class="metric-card clickable-card" style="background: {paused_bg}; border: 1px solid {paused_border}; border-left: 4px solid #f59e0b; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="document.querySelector('#paused-btn button').click()">
+                    <div class="metric-card clickable-card" style="background: {paused_bg}; border: 1px solid {paused_border}; border-left: 4px solid #f59e0b; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="window.location.href=window.location.pathname+'?nav=assets&billing_paused=true'">
                         <div style="font-size: 11px; font-weight: 600; color: #d97706; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Billing Paused</div>
                         <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{paused_count}</div>
                         <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Returned/Repair</div>
@@ -6543,44 +6398,16 @@ if page == "Dashboard":
                     </div>
                     """, unsafe_allow_html=True)
 
-                # Hidden buttons for Finance navigation - using container with hidden class
-                with st.container():
-                    st.markdown('<div class="hidden-nav-buttons">', unsafe_allow_html=True)
-                    fin_btn1, fin_btn2, fin_btn3 = st.columns(3)
-                    with fin_btn1:
-                        if st.button("​", key="billable_assets_nav"):
-                            st.session_state.current_page = "Assets"
-                            st.session_state.asset_filter = "WITH_CLIENT"
-                            safe_rerun()
-                    with fin_btn2:
-                        if st.button("​", key="revenue_nav"):
-                            st.session_state.current_page = "Billing"
-                            safe_rerun()
-                    with fin_btn3:
-                        if st.button("​", key="paused_nav"):
-                            st.session_state.current_page = "Assets"
-                            st.session_state.billing_paused_filter = True
-                            safe_rerun()
-                    st.markdown('</div>', unsafe_allow_html=True)
-
             elif current_role == "admin":
                 with insight_cols[3]:
                     st.markdown(f"""
-                    <div class="metric-card clickable-card" style="background: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #3b82f6; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="document.querySelector('#admin-revenue-btn button').click()">
+                    <div class="metric-card clickable-card" style="background: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #3b82f6; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="window.location.href=window.location.pathname+'?nav=billing'">
                         <div style="font-size: 11px; font-weight: 600; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Est. Revenue</div>
                         <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">₹{estimated_revenue:,}</div>
                         <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">{billable_count} billable @ ₹{monthly_rate:,}</div>
                         <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click for billing →</div>
                     </div>
                     """, unsafe_allow_html=True)
-
-                # Hidden button for Admin revenue navigation - using container with hidden class
-                with st.container():
-                    st.markdown('<div class="hidden-nav-buttons">', unsafe_allow_html=True)
-                    if st.button("​", key="admin_revenue_nav"):
-                        st.session_state.current_page = "Billing"
-                        safe_rerun()
-                    st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown('</div>', unsafe_allow_html=True)
 
