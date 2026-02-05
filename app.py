@@ -9403,7 +9403,7 @@ elif page == "Import/Export":
                         label_visibility="visible"
                     )
                 with limit_col2:
-                    st.markdown("<div style='padding-top: 32px; color: #6b7280;'>entries</div>", unsafe_allow_html=True)
+                    st.markdown("<div style='padding-top: 32px; color: #6b7280;'>records</div>", unsafe_allow_html=True)
 
                 # Select columns to show (using actual DB column names with display format)
                 display_cols = ['Serial Number', 'Asset Type', 'Brand', 'Model', 'Current Status', 'Current Location']
