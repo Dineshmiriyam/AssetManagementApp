@@ -2173,39 +2173,26 @@ st.markdown("""
     /* ===== SIDEBAR - Dark Theme ===== */
     [data-testid="stSidebar"] {
         background-color: var(--color-sidebar-bg) !important;
-        width: 220px !important;
-        min-width: 220px !important;
     }
 
     [data-testid="stSidebar"] > div:first-child {
         background-color: var(--color-sidebar-bg) !important;
-        width: 220px !important;
     }
 
-    /* Reduce sidebar content padding */
-    [data-testid="stSidebar"] [data-testid="stSidebarContent"] {
-        padding: 0.5rem 0.5rem !important;
-    }
-
-    /* Sidebar Section Headers - Compact */
+    /* Sidebar Section Headers */
     [data-testid="stSidebar"] .stMarkdown h3 {
         color: var(--color-text-tertiary) !important;
-        font-size: 10px !important;
+        font-size: var(--font-size-xs) !important;
         font-weight: var(--font-weight-semibold) !important;
         letter-spacing: var(--letter-spacing-wide) !important;
         text-transform: uppercase !important;
-        margin-top: 12px !important;
-        margin-bottom: 4px !important;
-        padding-left: 8px !important;
+        margin-top: var(--space-6) !important;
+        margin-bottom: var(--space-2) !important;
+        padding-left: var(--space-3) !important;
     }
 
     [data-testid="stSidebar"] .stMarkdown p {
         color: var(--color-text-muted) !important;
-    }
-
-    /* Reduce vertical gap between buttons */
-    [data-testid="stSidebar"] .stButton {
-        margin-bottom: 2px !important;
     }
 
     /* ===== SIDEBAR NAVIGATION BUTTONS ===== */
@@ -2218,23 +2205,22 @@ st.markdown("""
         box-shadow: none !important;
     }
 
-    /* Default button style (non-selected) - Compact */
+    /* Default button style (non-selected) */
     [data-testid="stSidebar"] .stButton > button {
         background: transparent !important;
         color: var(--color-text-muted) !important;
         border: none !important;
         border-left: 3px solid transparent !important;
-        border-radius: 0 6px 6px 0 !important;
-        padding: 8px 12px !important;
+        border-radius: 0 8px 8px 0 !important;
+        padding: var(--space-3) var(--space-4) !important;
         font-weight: var(--font-weight-normal) !important;
-        font-size: 13px !important;
+        font-size: var(--font-size-base) !important;
         text-align: left !important;
         justify-content: flex-start !important;
         cursor: pointer !important;
         transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease !important;
         outline: none !important;
         box-shadow: none !important;
-        min-height: auto !important;
     }
 
     /* Hover state - only shows while mouse is actually hovering */
@@ -2320,19 +2306,19 @@ st.markdown("""
 
     /* ===== SIDEBAR BRAND ===== */
     .sidebar-brand {
-        padding: 12px 12px 8px 12px;
+        padding: 20px 16px 16px 16px;
         margin-bottom: 0;
         text-align: center;
     }
 
     .sidebar-brand img {
-        height: 24px !important;
+        height: 28px !important;
         margin-bottom: 2px;
     }
 
     .sidebar-brand p {
         color: #64748b !important;
-        font-size: 9px !important;
+        font-size: 11px !important;
         margin: 0 !important;
         letter-spacing: 0.5px;
         text-transform: uppercase;
@@ -2341,33 +2327,34 @@ st.markdown("""
     /* ===== USER INFO CARD ===== */
     .user-info-card {
         background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-        border-radius: 6px;
-        padding: 10px 12px;
-        margin: 6px 8px 8px 8px;
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin: 8px 12px 12px 12px;
         border: 1px solid #334155;
     }
 
     .user-info-card .user-name {
         color: #f8fafc;
         font-weight: 600;
-        font-size: 12px;
-        margin-bottom: 1px;
+        font-size: 13px;
+        margin-bottom: 2px;
     }
 
     .user-info-card .user-role {
         color: #94a3b8;
-        font-size: 10px;
+        font-size: 11px;
     }
 
     /* ===== CONNECTION STATUS ===== */
     .connection-status {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        padding: 2px 8px;
-        border-radius: 12px;
-        font-size: 10px;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
         font-weight: 500;
+        margin: 8px 12px;
     }
 
     .status-connected {
@@ -2383,11 +2370,11 @@ st.markdown("""
     /* ===== NAV SECTION HEADERS ===== */
     .nav-section-header {
         color: #64748b;
-        font-size: 9px;
+        font-size: 10px;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.8px;
-        padding: 10px 12px 4px 12px;
+        letter-spacing: 1px;
+        padding: 16px 16px 6px 16px;
         margin: 0;
     }
 
@@ -2395,12 +2382,13 @@ st.markdown("""
     .role-badge-compact {
         display: inline-flex;
         align-items: center;
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-size: 9px;
+        gap: 4px;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 10px;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.3px;
+        letter-spacing: 0.5px;
     }
 
     .role-badge-compact.admin {
@@ -2421,19 +2409,19 @@ st.markdown("""
     /* ===== SIDEBAR FOOTER ===== */
     .sidebar-footer {
         text-align: center;
-        padding: 8px;
+        padding: 12px;
         border-top: 1px solid #334155;
-        margin-top: 6px;
+        margin-top: 8px;
     }
 
     .sidebar-footer .version {
         color: #475569;
-        font-size: 9px;
+        font-size: 10px;
     }
 
     .sidebar-footer .tech {
         color: #f97316;
-        font-size: 9px;
+        font-size: 10px;
         font-weight: 500;
     }
 
@@ -5633,7 +5621,7 @@ for group_name, items in visible_menu.items():
 # ============================================
 # USER INFO SECTION (After Navigation)
 # ============================================
-st.sidebar.markdown('<div style="margin-top: 10px;"></div>', unsafe_allow_html=True)
+st.sidebar.markdown('<div style="margin-top: 20px;"></div>', unsafe_allow_html=True)
 
 # User Info & Role
 user_display_name = st.session_state.user_full_name or st.session_state.username
