@@ -231,21 +231,36 @@ When something doesn't work:
    - Happens on page refresh
    - Solution: Use `st.session_state` with defaults
 
-2. **Iframe Navigation**
-   - `window.location` doesn't work
-   - Solution: Use `window.parent.location`
+2. **Anchor Tags Cause Session Loss** ⚠️ CRITICAL
+   - `<a href="?nav=...">` causes FULL page reload
+   - Full reload loses Streamlit session state → login loop
+   - **Solution: ALWAYS use `st.button()` for navigation, NEVER anchor tags**
 
-3. **CSS Specificity**
+3. **JavaScript Limitations**
+   - `st.markdown()` blocks `<script>` tags completely
+   - `components.html()` runs in sandboxed iframe, can't access parent DOM
+   - **Solution: Don't rely on JavaScript; use CSS-only solutions or Streamlit widgets**
+
+4. **HTML Elements Not Clickable**
+   - Cannot make HTML (via `st.markdown()`) trigger Python callbacks
+   - Only Streamlit widgets can trigger session state changes
+   - **Solution: Use merged card+button design (button styled to look like part of card)**
+
+5. **CSS Specificity**
    - Streamlit's CSS may override yours
    - Solution: Use `!important` when needed
 
-4. **Component Keys**
+6. **Component Keys**
    - Must be unique across entire app
    - Solution: Include context in key name (`assets_search`, `billing_search`)
 
-5. **Rerun Behavior**
+7. **Rerun Behavior**
    - `st.rerun()` restarts entire script
    - Solution: Set session state BEFORE calling rerun
+
+8. **CSS `:has()` Selector**
+   - Browser compatibility issues
+   - Solution: Avoid; use JavaScript or restructure HTML/components
 
 ### Database-Specific
 
@@ -270,4 +285,4 @@ When stuck:
 
 ---
 
-*Last updated: February 2026*
+*Last updated: February 6, 2026*

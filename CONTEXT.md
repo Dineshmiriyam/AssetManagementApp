@@ -1,7 +1,7 @@
 # NXTBY Asset Management System - Project Context
 
-> **Last Updated:** February 2026
-> **Version:** 1.0
+> **Last Updated:** February 6, 2026
+> **Version:** 1.1
 > **Status:** Production (Internal Use)
 
 ---
@@ -393,20 +393,26 @@ Local Development
 ## 12. KNOWN ISSUES & LIMITATIONS
 
 ### Streamlit Limitations
-1. **Iframe Environment:** Streamlit runs in iframe, requires `window.parent.location` for navigation
-2. **No Real-time Updates:** Page must refresh to see changes from other users
-3. **Session State:** Lost on page refresh (mitigated with session caching)
-4. **Custom Components:** Limited ability to add custom JavaScript
+1. **No Real-time Updates:** Page must refresh to see changes from other users
+2. **Session State:** Lost on full page refresh (mitigated with session caching)
+3. **Custom JavaScript:** `st.markdown()` blocks `<script>` tags; `components.html()` runs in sandboxed iframe
+4. **HTML Not Clickable:** Cannot make HTML elements trigger Python callbacks - only Streamlit widgets can
 
 ### Current Workarounds
-1. **KPI Card Navigation:** Uses URL query parameters instead of hidden buttons
+1. **KPI Card Navigation:** Uses merged card+button design (button styled as card footer)
 2. **Chart Clicks:** Uses `streamlit_plotly_events` for click detection
 3. **Session Validation:** Cached for 5 minutes to prevent login flicker
+4. **Anchor Tags Avoided:** All navigation uses `st.button()` to preserve session state
 
 ### Technical Debt
 1. `app.py` is large (~10,000 lines) - could be split into modules
 2. Some CSS is duplicated
 3. No automated tests
+
+### Resolved Issues (Feb 6, 2026)
+1. ~~Login loop when clicking dashboard cards~~ → Fixed with Streamlit buttons
+2. ~~Invisible text area borders~~ → Fixed with darker border color
+3. ~~Disconnected card+button appearance~~ → Fixed with merged design
 
 ---
 
@@ -421,12 +427,33 @@ Local Development
 | Feb 2026 | Added bulk operations |
 | Feb 2026 | Implemented clickable dashboard metrics |
 | Feb 2026 | Fixed navigation issues |
+| Feb 6, 2026 | Fixed login loop issue |
+| Feb 6, 2026 | Implemented merged card+button design |
 
-### Recent Changes
-- Removed visible button boxes below KPI cards
-- Fixed KPI card click navigation (window.parent.location)
-- Added multiselect dropdown border
-- Enhanced sidebar navigation
+### Recent Changes (February 6, 2026)
+
+#### Login Loop Fix
+- **Problem:** Clicking any dashboard card caused redirect to login page in infinite loop
+- **Root Cause:** Anchor tags (`<a href="?nav=...">`) caused full page reload, losing Streamlit session state
+- **Solution:** Replaced all anchor tags with Streamlit buttons (`st.button()`)
+- Added safety check after session validation to prevent redirect loops
+- Removed query parameter navigation code
+
+#### Dashboard Card UX Improvement
+- **Problem:** KPI cards had small "View" buttons below them that looked disconnected
+- **Approaches Tried:**
+  1. CSS overlay with `:has()` selector - Failed (browser compatibility)
+  2. JavaScript click forwarding via `components.html()` - Failed (iframe sandboxing)
+- **Final Solution (Option B):** Merged card+button design
+  - Cards have bottom border-radius removed (connects to button)
+  - Buttons styled as card footer with rounded bottom corners
+  - Combined hover effect - card and button lift together
+  - Seamless single-element appearance
+
+#### Notes Text Area Border Fix
+- **Problem:** Notes field in Add Asset page had invisible border
+- **Solution:** Changed border color from `#e2e8f0` to `#cbd5e1` (darker, more visible)
+- Added multiple CSS selectors for reliable targeting
 
 ---
 
