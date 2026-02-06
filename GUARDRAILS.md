@@ -262,6 +262,25 @@ When something doesn't work:
    - Browser compatibility issues
    - Solution: Avoid; use JavaScript or restructure HTML/components
 
+9. **Widget State Modification** ⚠️ CRITICAL
+   - Cannot modify `st.session_state.<widget_key>` AFTER widget is instantiated
+   - Example: `st.session_state.my_multiselect = []` after `st.multiselect(..., key="my_multiselect")` → ERROR
+   - **Solution: Use callback + flag pattern**
+     ```python
+     # BEFORE widget: check flag and clear
+     if st.session_state.get('clear_flag', False):
+         st.session_state.widget_key = []
+         st.session_state.clear_flag = False
+
+     # Widget
+     st.multiselect(..., key="widget_key")
+
+     # Button with callback (not direct modification)
+     def clear_callback():
+         st.session_state.clear_flag = True
+     st.button("Clear", on_click=clear_callback)
+     ```
+
 ### Database-Specific
 
 1. **Connection Timeouts**

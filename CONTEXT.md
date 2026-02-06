@@ -413,6 +413,7 @@ Local Development
 1. ~~Login loop when clicking dashboard cards~~ → Fixed with Streamlit buttons
 2. ~~Invisible text area borders~~ → Fixed with darker border color
 3. ~~Disconnected card+button appearance~~ → Fixed with merged design
+4. ~~Bulk selection clear error~~ → Fixed with callback + flag pattern
 
 ---
 
@@ -454,6 +455,15 @@ Local Development
 - **Problem:** Notes field in Add Asset page had invisible border
 - **Solution:** Changed border color from `#e2e8f0` to `#cbd5e1` (darker, more visible)
 - Added multiple CSS selectors for reliable targeting
+
+#### Bulk Selection Clear Error Fix
+- **Problem:** Clicking "Clear Selection" in Assets bulk operations caused `StreamlitAPIException`
+- **Root Cause:** Cannot modify `st.session_state.bulk_asset_select` after multiselect widget is instantiated
+- **Solution:** Implemented callback + flag pattern
+  - Added `clear_bulk_selection_flag` session state variable
+  - Clear Selection button uses `on_click` callback to set flag
+  - Flag is checked BEFORE multiselect widget renders
+  - Selection cleared and flag reset before widget instantiation
 
 ---
 

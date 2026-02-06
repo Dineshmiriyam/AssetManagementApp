@@ -8,6 +8,7 @@
 
 | Date | Commit | Description |
 |------|--------|-------------|
+| Feb 6, 2026 | `b144729` | Fix bulk selection clear error in Assets page |
 | Feb 6, 2026 | `0bfcd0a` | Fix Notes text area border visibility |
 | Feb 6, 2026 | `357a0ec` | Fix login loop and improve dashboard card UX |
 
@@ -103,6 +104,7 @@ If you need to add/change environment variables:
 | Login loop after clicking cards | Check for `<a href>` tags - use `st.button()` instead |
 | Buttons visible below cards | CSS merged design should hide them - check CSS loaded |
 | Input fields have no border | Check CSS border color is visible (use `#cbd5e1` not `#e2e8f0`) |
+| Widget state modification error | Use callback + flag pattern (see GUARDRAILS.md) |
 
 ---
 
@@ -130,6 +132,16 @@ If you need to add/change environment variables:
 **Problem:** Text area in Add Asset had invisible border
 
 **Solution:** Changed border color from `#e2e8f0` to `#cbd5e1`
+
+### Bulk Selection Clear Error
+**Problem:** Clicking "Clear Selection" in Assets page caused StreamlitAPIException
+
+**Root Cause:** Cannot modify `st.session_state.bulk_asset_select` after multiselect widget instantiated
+
+**Solution:** Callback + flag pattern
+- Button uses `on_click` callback to set `clear_bulk_selection_flag = True`
+- Flag checked BEFORE multiselect widget renders
+- If flag is True, clear selection and reset flag
 
 ---
 
