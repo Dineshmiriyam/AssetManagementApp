@@ -7245,6 +7245,11 @@ elif page == "Assets":
             </div>
             """, unsafe_allow_html=True)
 
+            # Check if we need to clear the selection (flag set by callback/previous action)
+            if st.session_state.get('clear_bulk_selection_flag', False):
+                st.session_state.bulk_asset_select = []
+                st.session_state.clear_bulk_selection_flag = False
+
             selected_assets = st.multiselect(
                 "Select Assets for Bulk Action",
                 options=asset_options,
@@ -7324,8 +7329,8 @@ elif page == "Assets":
                                     for err in errors[:10]:
                                         st.write(f"• {err}")
 
-                            # Clear selection and refresh
-                            st.session_state.bulk_asset_select = []
+                            # Clear selection and refresh (use flag to avoid widget state error)
+                            st.session_state.clear_bulk_selection_flag = True
                             safe_rerun()
 
                 elif bulk_action == "Assign to Client":
@@ -7418,14 +7423,15 @@ elif page == "Assets":
                                         for err in errors[:10]:
                                             st.write(f"• {err}")
 
-                                # Clear selection and refresh
-                                st.session_state.bulk_asset_select = []
+                                # Clear selection and refresh (use flag to avoid widget state error)
+                                st.session_state.clear_bulk_selection_flag = True
                                 safe_rerun()
 
-                # Clear selection button
-                if st.button("🗑️ Clear Selection", key="clear_bulk_selection"):
-                    st.session_state.bulk_asset_select = []
-                    safe_rerun()
+                # Clear selection button - uses callback to avoid widget state modification error
+                def clear_bulk_selection_callback():
+                    st.session_state.clear_bulk_selection_flag = True
+
+                st.button("🗑️ Clear Selection", key="clear_bulk_selection", on_click=clear_bulk_selection_callback)
 
             st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
 
