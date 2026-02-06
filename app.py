@@ -2704,11 +2704,20 @@ st.markdown("""
     .stTextInput > div > div > input,
     .stNumberInput > div > div > input,
     .stTextArea > div > div > textarea,
+    .stTextArea textarea,
     .stDateInput > div > div > input {
         background: #ffffff !important;
-        border: 1px solid #e2e8f0 !important;
+        border: 1px solid #cbd5e1 !important;
         border-radius: 6px !important;
         color: #1e293b !important;
+    }
+
+    /* Text area specific - ensure visible border */
+    .stTextArea textarea,
+    [data-testid="stTextArea"] textarea {
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 6px !important;
+        background: #ffffff !important;
     }
 
     .stSelectbox > div > div:focus-within,
