@@ -162,40 +162,72 @@ def create_asset(data: Dict) -> Tuple[bool, Optional[int], Optional[str]]:
     try:
         cursor = conn.cursor()
 
-        # Map Airtable field names to database columns
+        # Map field names to database columns
+        # Supports both Airtable-style names and Excel import names
         field_mapping = {
             "Serial Number": "serial_number",
+            "serial_number": "serial_number",  # Also accept db_field names
             "Asset Type": "asset_type",
+            "asset_type": "asset_type",
             "Brand": "brand",
+            "brand": "brand",
             "Model": "model",
+            "model": "model",
             "Specs": "specs",
+            "specs": "specs",
             "Touch Screen": "touch_screen",
+            "touch_screen": "touch_screen",
             "Processor": "processor",
+            "processor": "processor",
             "RAM (GB)": "ram_gb",
+            "ram_gb": "ram_gb",
             "Storage Type": "storage_type",
+            "storage_type": "storage_type",
             "Storage (GB)": "storage_gb",
+            "storage_gb": "storage_gb",
             "OS Installed": "os_installed",
+            "os_installed": "os_installed",
             "Office License Key": "office_license_key",
+            "office_license_key": "office_license_key",
             "Password": "device_password",
+            "Device Password": "device_password",  # Excel template uses this name
+            "device_password": "device_password",
             "Current Status": "current_status",
+            "current_status": "current_status",
             "Current Location": "current_location",
+            "current_location": "current_location",
             "Purchase Date": "purchase_date",
+            "purchase_date": "purchase_date",
             "Purchase Price": "purchase_price",
-            "Notes": "notes"
+            "purchase_price": "purchase_price",
+            "Notes": "notes",
+            "notes": "notes"
         }
 
         # Build INSERT query
         columns = []
         values = []
         placeholders = []
+        seen_columns = set()  # Track columns to avoid duplicates
 
-        for airtable_field, db_column in field_mapping.items():
-            if airtable_field in data and data[airtable_field]:
-                columns.append(db_column)
-                values.append(data[airtable_field])
-                placeholders.append("%s")
+        for input_field, db_column in field_mapping.items():
+            if input_field in data and data[input_field] is not None:
+                value = data[input_field]
+                # Skip empty strings
+                if isinstance(value, str) and not value.strip():
+                    continue
+                # Avoid duplicate columns
+                if db_column not in seen_columns:
+                    columns.append(db_column)
+                    values.append(value)
+                    placeholders.append("%s")
+                    seen_columns.add(db_column)
 
         if not columns:
+            # Provide more helpful error message
+            provided_fields = [k for k, v in data.items() if v]
+            if provided_fields:
+                return False, None, f"No valid data mapped from fields: {', '.join(provided_fields[:5])}"
             return False, None, "No data provided"
 
         query = f"""

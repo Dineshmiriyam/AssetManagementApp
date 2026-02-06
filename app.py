@@ -435,15 +435,25 @@ def render_login_page():
     # Complete CSS matching reference design
     st.markdown("""
     <style>
-    /* Hide Streamlit defaults */
-    #MainMenu, footer, header, [data-testid="stToolbar"], [data-testid="stDecoration"] {
+    /* Hide Streamlit defaults AND sidebar for login page */
+    #MainMenu, footer, header, [data-testid="stToolbar"], [data-testid="stDecoration"],
+    [data-testid="stSidebar"], [data-testid="stSidebarNav"], section[data-testid="stSidebar"],
+    [data-testid="collapsedControl"] {
         display: none !important;
+        visibility: hidden !important;
     }
 
     /* Page background - clean light gray */
     .stApp {
         background: #f5f5f5 !important;
         min-height: 100vh;
+    }
+
+    /* Ensure main content is full width on login */
+    .main .block-container {
+        max-width: 100% !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
     }
 
     /* ============ BRAND SECTION (Above Card) ============ */
@@ -1822,12 +1832,84 @@ st.set_page_config(
     page_title="Asset Management System",
     page_icon="🟠",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"  # Start collapsed to prevent flash
 )
+
+# ============================================
+# CRITICAL: HIDE ALL UI UNTIL AUTH IS RESOLVED
+# ============================================
+# This CSS runs FIRST to prevent any visual flash during auth check
+# It will be overridden by login page CSS or main app CSS
+st.markdown("""
+<style>
+/* Hide everything until auth decision is made */
+[data-testid="stSidebar"] { display: none !important; }
+[data-testid="stSidebarNav"] { display: none !important; }
+section[data-testid="stSidebar"] { display: none !important; }
+</style>
+""", unsafe_allow_html=True)
+
+# ============================================
+# EARLY AUTH CHECK - BEFORE ANY UI RENDERING
+# ============================================
+# This MUST run before any other st.* calls to prevent login flash
+
+# 1. Initialize auth session state defaults
+init_auth_session()
+
+# 2. Read query parameters FIRST (before any rendering)
+_query_params = st.query_params
+_nav_target = _query_params.get("nav", None)
+_nav_filter = _query_params.get("filter", None)
+_sla_filter = _query_params.get("sla", None)
+_billing_paused = _query_params.get("billing_paused", None)
+
+# 3. Check authentication state
+# If NOT authenticated, render login page and STOP immediately
+# This prevents ANY main app UI from rendering
+if not st.session_state.authenticated:
+    # Clear any query params (user needs to login first)
+    if _nav_target:
+        st.query_params.clear()
+    render_login_page()
+    st.stop()
+
+# 4. User IS authenticated from this point forward
+# Handle query parameter navigation (KPI card clicks)
+if _nav_target:
+    if "current_page" not in st.session_state:
+        st.session_state.current_page = "Dashboard"
+
+    if _nav_target == "assets":
+        st.session_state.current_page = "Assets"
+        if _nav_filter:
+            st.session_state.asset_filter = _nav_filter
+        if _sla_filter:
+            st.session_state.sla_filter = _sla_filter
+        if _billing_paused == "true":
+            st.session_state.billing_paused_filter = True
+    elif _nav_target == "billing":
+        st.session_state.current_page = "Billing"
+
+    # Clear query params after processing
+    st.query_params.clear()
+
+# 5. Continue with authenticated user UI (global CSS, etc.)
+# ============================================
 
 # Professional Dashboard Theme CSS - Matching Reference Design
 st.markdown("""
 <style>
+    /* ==========================================================================
+       AUTHENTICATED USER: Show sidebar (override initial hidden state)
+       ========================================================================== */
+    [data-testid="stSidebar"],
+    [data-testid="stSidebarNav"],
+    section[data-testid="stSidebar"] {
+        display: flex !important;
+        visibility: visible !important;
+    }
+
     /* ==========================================================================
        DESIGN SYSTEM - Enterprise Asset Management Dashboard
        Version: 2.0
@@ -3948,6 +4030,19 @@ st.markdown("""
         min-width: 0;
     }
 
+    /* ===== KPI CARD ANCHOR LINKS (No underlines) ===== */
+    .kpi-cards-row a,
+    .kpi-cards-row a:hover,
+    .kpi-cards-row a:focus,
+    .kpi-cards-row a:active,
+    .kpi-cards-row a:visited {
+        text-decoration: none !important;
+        color: inherit !important;
+    }
+    .kpi-cards-row a * {
+        text-decoration: none !important;
+    }
+
     /* ===== CLICKABLE METRIC CARDS ===== */
     .clickable-card {
         cursor: pointer;
@@ -5467,53 +5562,22 @@ def get_visible_menu_items(role):
     return visible_groups
 
 # ============================================
-# AUTHENTICATION CHECK
+# SESSION SECURITY CHECKS (Auth already verified at top of file)
 # ============================================
-# Initialize auth session state
-init_auth_session()
+# Note: init_auth_session() and login check are handled BEFORE global CSS
+# to prevent login page flash. See lines after st.set_page_config()
 
 # Perform security checks for authenticated sessions
-if st.session_state.authenticated:
-    # Check for session timeout (absolute and inactivity)
-    session_timed_out = check_session_timeout()
+# Check for session timeout (absolute and inactivity)
+session_timed_out = check_session_timeout()
 
-    # If not timed out, validate session against server
-    if not session_timed_out:
-        validate_current_session()
+# If not timed out, validate session against server
+if not session_timed_out:
+    validate_current_session()
 
-# Show login page if not authenticated
-if not st.session_state.authenticated:
-    render_login_page()
-    st.stop()
-
-# Initialize session state for navigation
+# Initialize session state for navigation (if not already set by query params)
 if "current_page" not in st.session_state:
     st.session_state.current_page = "Dashboard"
-
-# Handle query parameter navigation (for clickable KPI cards)
-query_params = st.query_params
-if "nav" in query_params:
-    nav_target = query_params.get("nav")
-    nav_filter = query_params.get("filter", None)
-    sla_filter = query_params.get("sla", None)
-    billing_paused = query_params.get("billing_paused", None)
-
-    # Clear query params immediately to prevent loops
-    st.query_params.clear()
-
-    # Set navigation state
-    if nav_target == "assets":
-        st.session_state.current_page = "Assets"
-        if nav_filter:
-            st.session_state.asset_filter = nav_filter
-        if sla_filter:
-            st.session_state.sla_filter = sla_filter
-        if billing_paused == "true":
-            st.session_state.billing_paused_filter = True
-    elif nav_target == "billing":
-        st.session_state.current_page = "Billing"
-
-    st.rerun()
 
 # User role is now set from login (no need for default)
 
@@ -5776,22 +5840,26 @@ if page == "Dashboard":
                 critical_bg = "#fef2f2" if sla_counts['critical'] > 0 else "#ffffff"
                 critical_border = "#fecaca" if sla_counts['critical'] > 0 else "#e5e7eb"
                 st.markdown(f"""
-                <div class="metric-card" style="background: {critical_bg}; border: 1px solid {critical_border}; border-radius: 12px; padding: 20px;">
-                    <div style="font-size: 11px; font-weight: 600; color: #dc2626; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">SLA Critical</div>
-                    <div style="font-size: 36px; font-weight: 700; color: #dc2626; line-height: 1;">{sla_counts['critical']}</div>
-                    <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Exceeds threshold</div>
-                </div>
+                <a href="?nav=assets&sla=critical" style="text-decoration: none; color: inherit; display: block;">
+                    <div class="metric-card" style="background: {critical_bg}; border: 1px solid {critical_border}; border-radius: 12px; padding: 20px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">
+                        <div style="font-size: 11px; font-weight: 600; color: #dc2626; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">SLA Critical</div>
+                        <div style="font-size: 36px; font-weight: 700; color: #dc2626; line-height: 1;">{sla_counts['critical']}</div>
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Exceeds threshold</div>
+                    </div>
+                </a>
                 """, unsafe_allow_html=True)
 
             with sla_col2:
                 warning_bg = "#fffbeb" if sla_counts['warning'] > 0 else "#ffffff"
                 warning_border = "#fde68a" if sla_counts['warning'] > 0 else "#e5e7eb"
                 st.markdown(f"""
-                <div class="metric-card" style="background: {warning_bg}; border: 1px solid {warning_border}; border-radius: 12px; padding: 20px;">
-                    <div style="font-size: 11px; font-weight: 600; color: #d97706; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">SLA Warning</div>
-                    <div style="font-size: 36px; font-weight: 700; color: #d97706; line-height: 1;">{sla_counts['warning']}</div>
-                    <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Approaching limit</div>
-                </div>
+                <a href="?nav=assets&sla=warning" style="text-decoration: none; color: inherit; display: block;">
+                    <div class="metric-card" style="background: {warning_bg}; border: 1px solid {warning_border}; border-radius: 12px; padding: 20px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">
+                        <div style="font-size: 11px; font-weight: 600; color: #d97706; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">SLA Warning</div>
+                        <div style="font-size: 36px; font-weight: 700; color: #d97706; line-height: 1;">{sla_counts['warning']}</div>
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Approaching limit</div>
+                    </div>
+                </a>
                 """, unsafe_allow_html=True)
 
             with sla_col3:
@@ -5799,11 +5867,13 @@ if page == "Dashboard":
                 return_border = "#fecaca" if returned > 0 else "#e5e7eb"
                 return_color = "#ef4444" if returned > 0 else "#10b981"
                 st.markdown(f"""
-                <div class="metric-card" style="background: {return_bg}; border: 1px solid {return_border}; border-radius: 12px; padding: 20px;">
-                    <div style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Returns Backlog</div>
-                    <div style="font-size: 36px; font-weight: 700; color: {return_color}; line-height: 1;">{returned}</div>
-                    <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Pending review</div>
-                </div>
+                <a href="?nav=assets&filter=RETURNED_FROM_CLIENT" style="text-decoration: none; color: inherit; display: block;">
+                    <div class="metric-card" style="background: {return_bg}; border: 1px solid {return_border}; border-radius: 12px; padding: 20px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">
+                        <div style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Returns Backlog</div>
+                        <div style="font-size: 36px; font-weight: 700; color: {return_color}; line-height: 1;">{returned}</div>
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Pending review</div>
+                    </div>
+                </a>
                 """, unsafe_allow_html=True)
 
             with sla_col4:
@@ -5811,11 +5881,13 @@ if page == "Dashboard":
                 repair_border = "#bfdbfe" if under_repair > 0 else "#e5e7eb"
                 repair_color = "#3b82f6" if under_repair > 0 else "#10b981"
                 st.markdown(f"""
-                <div class="metric-card" style="background: {repair_bg}; border: 1px solid {repair_border}; border-radius: 12px; padding: 20px;">
-                    <div style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Repair Backlog</div>
-                    <div style="font-size: 36px; font-weight: 700; color: {repair_color}; line-height: 1;">{under_repair}</div>
-                    <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">At vendor</div>
-                </div>
+                <a href="?nav=assets&filter=WITH_VENDOR_REPAIR" style="text-decoration: none; color: inherit; display: block;">
+                    <div class="metric-card" style="background: {repair_bg}; border: 1px solid {repair_border}; border-radius: 12px; padding: 20px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">
+                        <div style="font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Repair Backlog</div>
+                        <div style="font-size: 36px; font-weight: 700; color: {repair_color}; line-height: 1;">{under_repair}</div>
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">At vendor</div>
+                    </div>
+                </a>
                 """, unsafe_allow_html=True)
 
             st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
@@ -6175,34 +6247,44 @@ if page == "Dashboard":
         </div>
         """, unsafe_allow_html=True)
 
-        # KPI Cards - Clickable with query param navigation
+        # KPI Cards - Clickable with anchor tag navigation (onclick stripped by Streamlit)
         st.markdown(f"""
         <div class="kpi-cards-row">
-            <div class="kpi-card neutral" onclick="window.parent.location.href=window.parent.location.pathname+'?nav=assets&filter=All'">
-                <div class="kpi-card-title">TOTAL ASSETS</div>
-                <div class="kpi-card-value">{total}</div>
-                <div class="kpi-card-label">All inventory</div>
-            </div>
-            <div class="kpi-card blue" onclick="window.parent.location.href=window.parent.location.pathname+'?nav=assets&filter=WITH_CLIENT'">
-                <div class="kpi-card-title">DEPLOYED</div>
-                <div class="kpi-card-value">{with_client}</div>
-                <div class="kpi-card-label">With clients</div>
-            </div>
-            <div class="kpi-card green" onclick="window.parent.location.href=window.parent.location.pathname+'?nav=assets&filter=IN_STOCK_WORKING'">
-                <div class="kpi-card-title">AVAILABLE</div>
-                <div class="kpi-card-value">{in_stock}</div>
-                <div class="kpi-card-label">Ready to deploy</div>
-            </div>
-            <div class="kpi-card amber" onclick="window.parent.location.href=window.parent.location.pathname+'?nav=assets&filter=WITH_VENDOR_REPAIR'">
-                <div class="kpi-card-title">IN REPAIR</div>
-                <div class="kpi-card-value">{under_repair}</div>
-                <div class="kpi-card-label">At vendor</div>
-            </div>
-            <div class="kpi-card red" onclick="window.parent.location.href=window.parent.location.pathname+'?nav=assets&filter=RETURNED_FROM_CLIENT'">
-                <div class="kpi-card-title">RETURNED</div>
-                <div class="kpi-card-value">{returned}</div>
-                <div class="kpi-card-label">Needs review</div>
-            </div>
+            <a href="?nav=assets&filter=All" class="kpi-card-link">
+                <div class="kpi-card neutral">
+                    <div class="kpi-card-title">TOTAL ASSETS</div>
+                    <div class="kpi-card-value">{total}</div>
+                    <div class="kpi-card-label">All inventory</div>
+                </div>
+            </a>
+            <a href="?nav=assets&filter=WITH_CLIENT" class="kpi-card-link">
+                <div class="kpi-card blue">
+                    <div class="kpi-card-title">DEPLOYED</div>
+                    <div class="kpi-card-value">{with_client}</div>
+                    <div class="kpi-card-label">With clients</div>
+                </div>
+            </a>
+            <a href="?nav=assets&filter=IN_STOCK_WORKING" class="kpi-card-link">
+                <div class="kpi-card green">
+                    <div class="kpi-card-title">AVAILABLE</div>
+                    <div class="kpi-card-value">{in_stock}</div>
+                    <div class="kpi-card-label">Ready to deploy</div>
+                </div>
+            </a>
+            <a href="?nav=assets&filter=WITH_VENDOR_REPAIR" class="kpi-card-link">
+                <div class="kpi-card amber">
+                    <div class="kpi-card-title">IN REPAIR</div>
+                    <div class="kpi-card-value">{under_repair}</div>
+                    <div class="kpi-card-label">At vendor</div>
+                </div>
+            </a>
+            <a href="?nav=assets&filter=RETURNED_FROM_CLIENT" class="kpi-card-link">
+                <div class="kpi-card red">
+                    <div class="kpi-card-title">RETURNED</div>
+                    <div class="kpi-card-value">{returned}</div>
+                    <div class="kpi-card-label">Needs review</div>
+                </div>
+            </a>
         </div>
         <style>
         .kpi-cards-row {{
@@ -6210,9 +6292,25 @@ if page == "Dashboard":
             gap: 16px;
             margin-bottom: 24px;
         }}
-        .kpi-cards-row .kpi-card {{
+        .kpi-card-link {{
             flex: 1;
             min-width: 0;
+            text-decoration: none !important;
+            color: inherit !important;
+            display: block;
+        }}
+        .kpi-card-link:hover,
+        .kpi-card-link:focus,
+        .kpi-card-link:active,
+        .kpi-card-link:visited {{
+            text-decoration: none !important;
+            color: inherit !important;
+        }}
+        .kpi-card-link .kpi-card {{
+            height: 100%;
+        }}
+        .kpi-card-link * {{
+            text-decoration: none !important;
         }}
         </style>
         """, unsafe_allow_html=True)
@@ -6322,36 +6420,42 @@ if page == "Dashboard":
                 critical_bg = "#fef2f2" if sla_counts['critical'] > 0 else "#ffffff"
                 critical_border = "#fecaca" if sla_counts['critical'] > 0 else "#e5e7eb"
                 st.markdown(f"""
-                <div class="metric-card clickable-card" style="background: {critical_bg}; border: 1px solid {critical_border}; border-left: 4px solid #dc2626; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="window.parent.location.href=window.parent.location.pathname+'?nav=assets&sla=critical'">
-                    <div style="font-size: 11px; font-weight: 600; color: #dc2626; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">SLA Critical</div>
-                    <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{sla_counts['critical']}</div>
-                    <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Exceeds threshold</div>
-                    <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click to view →</div>
-                </div>
+                <a href="?nav=assets&sla=critical" style="text-decoration: none; color: inherit; display: block;">
+                    <div class="metric-card clickable-card" style="background: {critical_bg}; border: 1px solid {critical_border}; border-left: 4px solid #dc2626; border-radius: 12px; padding: 20px; cursor: pointer;">
+                        <div style="font-size: 11px; font-weight: 600; color: #dc2626; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">SLA Critical</div>
+                        <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{sla_counts['critical']}</div>
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Exceeds threshold</div>
+                        <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click to view →</div>
+                    </div>
+                </a>
                 """, unsafe_allow_html=True)
 
             with insight_cols[1]:
                 warning_bg = "#fffbeb" if sla_counts['warning'] > 0 else "#ffffff"
                 warning_border = "#fde68a" if sla_counts['warning'] > 0 else "#e5e7eb"
                 st.markdown(f"""
-                <div class="metric-card clickable-card" style="background: {warning_bg}; border: 1px solid {warning_border}; border-left: 4px solid #f59e0b; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="window.parent.location.href=window.parent.location.pathname+'?nav=assets&sla=warning'">
-                    <div style="font-size: 11px; font-weight: 600; color: #d97706; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">SLA Warning</div>
-                    <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{sla_counts['warning']}</div>
-                    <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Approaching limit</div>
-                    <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click to view →</div>
-                </div>
+                <a href="?nav=assets&sla=warning" style="text-decoration: none; color: inherit; display: block;">
+                    <div class="metric-card clickable-card" style="background: {warning_bg}; border: 1px solid {warning_border}; border-left: 4px solid #f59e0b; border-radius: 12px; padding: 20px; cursor: pointer;">
+                        <div style="font-size: 11px; font-weight: 600; color: #d97706; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">SLA Warning</div>
+                        <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{sla_counts['warning']}</div>
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Approaching limit</div>
+                        <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click to view →</div>
+                    </div>
+                </a>
                 """, unsafe_allow_html=True)
 
             with insight_cols[2]:
                 ok_bg = "#f0fdf4" if sla_counts['ok'] > 0 else "#ffffff"
                 ok_border = "#bbf7d0" if sla_counts['ok'] > 0 else "#e5e7eb"
                 st.markdown(f"""
-                <div class="metric-card clickable-card" style="background: {ok_bg}; border: 1px solid {ok_border}; border-left: 4px solid #16a34a; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="window.parent.location.href=window.parent.location.pathname+'?nav=assets&sla=ok'">
-                    <div style="font-size: 11px; font-weight: 600; color: #16a34a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">SLA OK</div>
-                    <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{sla_counts['ok']}</div>
-                    <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Within target</div>
-                    <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click to view →</div>
-                </div>
+                <a href="?nav=assets&sla=ok" style="text-decoration: none; color: inherit; display: block;">
+                    <div class="metric-card clickable-card" style="background: {ok_bg}; border: 1px solid {ok_border}; border-left: 4px solid #16a34a; border-radius: 12px; padding: 20px; cursor: pointer;">
+                        <div style="font-size: 11px; font-weight: 600; color: #16a34a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">SLA OK</div>
+                        <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{sla_counts['ok']}</div>
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Within target</div>
+                        <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click to view →</div>
+                    </div>
+                </a>
                 """, unsafe_allow_html=True)
 
         if role_config["show_billing"]:
@@ -6367,22 +6471,26 @@ if page == "Dashboard":
             if current_role == "finance":
                 with insight_cols[0]:
                     st.markdown(f"""
-                    <div class="metric-card clickable-card" style="background: #ffffff; border: 1px solid #e5e7eb; border-left: 4px solid #6366f1; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="window.parent.location.href=window.parent.location.pathname+'?nav=assets&filter=WITH_CLIENT'">
-                        <div style="font-size: 11px; font-weight: 600; color: #6366f1; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Billable Assets</div>
-                        <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{billable_count}</div>
-                        <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Currently deployed</div>
-                        <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click to view →</div>
-                    </div>
+                    <a href="?nav=assets&filter=WITH_CLIENT" style="text-decoration: none; color: inherit; display: block;">
+                        <div class="metric-card clickable-card" style="background: #ffffff; border: 1px solid #e5e7eb; border-left: 4px solid #6366f1; border-radius: 12px; padding: 20px; cursor: pointer;">
+                            <div style="font-size: 11px; font-weight: 600; color: #6366f1; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Billable Assets</div>
+                            <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{billable_count}</div>
+                            <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Currently deployed</div>
+                            <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click to view →</div>
+                        </div>
+                    </a>
                     """, unsafe_allow_html=True)
 
                 with insight_cols[1]:
                     st.markdown(f"""
-                    <div class="metric-card clickable-card" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="window.parent.location.href=window.parent.location.pathname+'?nav=billing'">
-                        <div style="font-size: 11px; font-weight: 600; color: #16a34a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Est. Monthly Revenue</div>
-                        <div style="font-size: 36px; font-weight: 700; color: #16a34a; line-height: 1;">₹{estimated_revenue:,}</div>
-                        <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">@ ₹{monthly_rate:,}/asset</div>
-                        <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click for billing →</div>
-                    </div>
+                    <a href="?nav=billing" style="text-decoration: none; color: inherit; display: block;">
+                        <div class="metric-card clickable-card" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid #16a34a; border-radius: 12px; padding: 20px; cursor: pointer;">
+                            <div style="font-size: 11px; font-weight: 600; color: #16a34a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Est. Monthly Revenue</div>
+                            <div style="font-size: 36px; font-weight: 700; color: #16a34a; line-height: 1;">₹{estimated_revenue:,}</div>
+                            <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">@ ₹{monthly_rate:,}/asset</div>
+                            <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click for billing →</div>
+                        </div>
+                    </a>
                     """, unsafe_allow_html=True)
 
                 # Show paused billing count instead of sold
@@ -6390,23 +6498,27 @@ if page == "Dashboard":
                     paused_bg = "#fffbeb" if paused_count > 0 else "#ffffff"
                     paused_border = "#fde68a" if paused_count > 0 else "#e5e7eb"
                     st.markdown(f"""
-                    <div class="metric-card clickable-card" style="background: {paused_bg}; border: 1px solid {paused_border}; border-left: 4px solid #f59e0b; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="window.parent.location.href=window.parent.location.pathname+'?nav=assets&billing_paused=true'">
-                        <div style="font-size: 11px; font-weight: 600; color: #d97706; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Billing Paused</div>
-                        <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{paused_count}</div>
-                        <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Returned/Repair</div>
-                        <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click to view →</div>
-                    </div>
+                    <a href="?nav=assets&billing_paused=true" style="text-decoration: none; color: inherit; display: block;">
+                        <div class="metric-card clickable-card" style="background: {paused_bg}; border: 1px solid {paused_border}; border-left: 4px solid #f59e0b; border-radius: 12px; padding: 20px; cursor: pointer;">
+                            <div style="font-size: 11px; font-weight: 600; color: #d97706; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Billing Paused</div>
+                            <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">{paused_count}</div>
+                            <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Returned/Repair</div>
+                            <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click to view →</div>
+                        </div>
+                    </a>
                     """, unsafe_allow_html=True)
 
             elif current_role == "admin":
                 with insight_cols[3]:
                     st.markdown(f"""
-                    <div class="metric-card clickable-card" style="background: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #3b82f6; border-radius: 12px; padding: 20px; cursor: pointer;" onclick="window.parent.location.href=window.parent.location.pathname+'?nav=billing'">
-                        <div style="font-size: 11px; font-weight: 600; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Est. Revenue</div>
-                        <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">₹{estimated_revenue:,}</div>
-                        <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">{billable_count} billable @ ₹{monthly_rate:,}</div>
-                        <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click for billing →</div>
-                    </div>
+                    <a href="?nav=billing" style="text-decoration: none; color: inherit; display: block;">
+                        <div class="metric-card clickable-card" style="background: #eff6ff; border: 1px solid #bfdbfe; border-left: 4px solid #3b82f6; border-radius: 12px; padding: 20px; cursor: pointer;">
+                            <div style="font-size: 11px; font-weight: 600; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Est. Revenue</div>
+                            <div style="font-size: 36px; font-weight: 700; color: #1f2937; line-height: 1;">₹{estimated_revenue:,}</div>
+                            <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">{billable_count} billable @ ₹{monthly_rate:,}</div>
+                            <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Click for billing →</div>
+                        </div>
+                    </a>
                     """, unsafe_allow_html=True)
 
         st.markdown('</div>', unsafe_allow_html=True)
@@ -10281,6 +10393,9 @@ elif page == "Import/Export":
                                             description=f"Imported {result['success']} assets from Excel",
                                             success=True
                                         )
+
+                                        # CRITICAL: Mark data as stale to refresh dashboard
+                                        st.session_state.data_stale = True
 
                                     if result['failed'] > 0:
                                         st.warning(f"⚠️ {result['failed']} assets failed to import.")

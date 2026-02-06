@@ -291,10 +291,11 @@ def validate_import_data(df: pd.DataFrame) -> Tuple[bool, List[Dict], List[Dict]
         errors.append({"row": 0, "field": "File", "message": "The uploaded file is empty"})
         return False, errors, warnings, df
 
-    # Clean column names (remove * and whitespace)
-    df.columns = [col.replace(" *", "").strip() for col in df.columns]
+    # Step 1: Normalize column names (strip whitespace, remove asterisks)
+    df = df.copy()
+    df.columns = [str(col).replace(" *", "").strip() for col in df.columns]
 
-    # Check required columns exist
+    # Step 2: Check required columns exist
     required_columns = [col["name"] for col in EXCEL_COLUMNS if col["required"]]
     missing_columns = [col for col in required_columns if col not in df.columns]
 
@@ -311,25 +312,40 @@ def validate_import_data(df: pd.DataFrame) -> Tuple[bool, List[Dict], List[Dict]
     existing_serials = set()
     if existing_assets is not None and not existing_assets.empty:
         if "Serial Number" in existing_assets.columns:
-            existing_serials = set(existing_assets["Serial Number"].dropna().str.upper())
+            existing_serials = set(existing_assets["Serial Number"].dropna().astype(str).str.strip().str.upper())
         elif "serial_number" in existing_assets.columns:
-            existing_serials = set(existing_assets["serial_number"].dropna().str.upper())
+            existing_serials = set(existing_assets["serial_number"].dropna().astype(str).str.strip().str.upper())
 
     # Track serial numbers in this import for duplicate detection
     import_serials = set()
     valid_rows = []
+    empty_row_count = 0
 
     # Validate each row
     for idx, row in df.iterrows():
         row_num = idx + 2  # Excel row number (1-indexed + header)
         row_errors = []
 
-        # Skip empty rows
-        if row.isna().all() or (row.astype(str).str.strip() == "").all():
+        # Step 3: Skip completely empty rows early
+        if row.isna().all():
+            empty_row_count += 1
             continue
 
+        # Check if all values are empty strings or NaN
+        row_str_values = row.astype(str).str.strip()
+        if (row_str_values == "").all() or (row_str_values == "nan").all():
+            empty_row_count += 1
+            continue
+
+        # Step 4: Get and validate Serial Number FIRST
+        serial_raw = row.get("Serial Number", "")
+        serial = str(serial_raw).strip() if pd.notna(serial_raw) else ""
+
+        # Handle NaN string
+        if serial.lower() == "nan":
+            serial = ""
+
         # Skip sample row
-        serial = str(row.get("Serial Number", "")).strip()
         if serial.upper() == "SAMPLE-001":
             warnings.append({
                 "row": row_num,
@@ -339,7 +355,7 @@ def validate_import_data(df: pd.DataFrame) -> Tuple[bool, List[Dict], List[Dict]
             continue
 
         # Check Serial Number (required)
-        if not serial or serial.lower() == "nan":
+        if not serial:
             row_errors.append({
                 "row": row_num,
                 "field": "Serial Number",
@@ -351,7 +367,7 @@ def validate_import_data(df: pd.DataFrame) -> Tuple[bool, List[Dict], List[Dict]
                 warnings.append({
                     "row": row_num,
                     "field": "Serial Number",
-                    "message": f"Serial Number '{serial}' already exists - will be skipped"
+                    "message": f"Serial Number '{serial}' already exists in database - will be skipped"
                 })
                 continue
 
@@ -365,49 +381,63 @@ def validate_import_data(df: pd.DataFrame) -> Tuple[bool, List[Dict], List[Dict]
             else:
                 import_serials.add(serial.upper())
 
-        # Validate numeric fields
+        # Step 5: Validate numeric fields
         for field in ["RAM (GB)", "Storage (GB)"]:
             if field in df.columns:
                 value = row.get(field)
-                if pd.notna(value) and str(value).strip():
-                    try:
-                        int(float(str(value)))
-                    except (ValueError, TypeError):
-                        row_errors.append({
-                            "row": row_num,
-                            "field": field,
-                            "message": f"Invalid number: {value}"
-                        })
+                if pd.notna(value):
+                    value_str = str(value).strip()
+                    if value_str and value_str.lower() != "nan":
+                        try:
+                            int(float(value_str))
+                        except (ValueError, TypeError):
+                            row_errors.append({
+                                "row": row_num,
+                                "field": field,
+                                "message": f"Invalid number: '{value}'"
+                            })
 
         # Validate Purchase Price
         if "Purchase Price" in df.columns:
             value = row.get("Purchase Price")
-            if pd.notna(value) and str(value).strip():
-                try:
-                    float(str(value).replace(",", ""))
-                except (ValueError, TypeError):
-                    row_errors.append({
-                        "row": row_num,
-                        "field": "Purchase Price",
-                        "message": f"Invalid price: {value}"
-                    })
+            if pd.notna(value):
+                value_str = str(value).strip()
+                if value_str and value_str.lower() != "nan":
+                    try:
+                        float(value_str.replace(",", ""))
+                    except (ValueError, TypeError):
+                        row_errors.append({
+                            "row": row_num,
+                            "field": "Purchase Price",
+                            "message": f"Invalid price: '{value}'"
+                        })
 
-        # Validate dropdown values
+        # Step 6: Validate dropdown values
         for col_config in EXCEL_COLUMNS:
             if col_config["type"] == "dropdown" and col_config["name"] in df.columns:
                 value = row.get(col_config["name"])
-                if pd.notna(value) and str(value).strip():
-                    if str(value).strip() not in col_config["options"]:
-                        warnings.append({
-                            "row": row_num,
-                            "field": col_config["name"],
-                            "message": f"Value '{value}' not in standard options"
-                        })
+                if pd.notna(value):
+                    value_str = str(value).strip()
+                    if value_str and value_str.lower() != "nan":
+                        if value_str not in col_config["options"]:
+                            warnings.append({
+                                "row": row_num,
+                                "field": col_config["name"],
+                                "message": f"Value '{value_str}' not in standard options: {', '.join(col_config['options'][:3])}..."
+                            })
 
         if row_errors:
             errors.extend(row_errors)
         else:
             valid_rows.append(idx)
+
+    # Log empty row count as info (not error)
+    if empty_row_count > 0:
+        warnings.append({
+            "row": 0,
+            "field": "Info",
+            "message": f"{empty_row_count} empty row(s) were skipped"
+        })
 
     # Filter DataFrame to only valid rows
     if valid_rows:
@@ -437,75 +467,130 @@ def import_assets_from_dataframe(df: pd.DataFrame) -> Dict[str, Any]:
         "imported_serials": []
     }
 
-    # Column name mapping
-    column_mapping = {col["name"]: col["db_field"] for col in EXCEL_COLUMNS}
+    # Normalize column names (strip whitespace, remove asterisks)
+    df = df.copy()
+    df.columns = [str(col).replace(" *", "").strip() for col in df.columns]
 
     for idx, row in df.iterrows():
+        row_num = idx + 2  # Excel row number (1-indexed + header)
+
         try:
-            # Build asset data dictionary
-            asset_data = {}
+            # Skip completely empty rows
+            if row.isna().all():
+                continue
 
-            for col_name, db_field in column_mapping.items():
-                if col_name in df.columns:
-                    value = row.get(col_name)
+            # Convert row to string and check if all empty
+            row_str_values = row.astype(str).str.strip()
+            if (row_str_values == "").all() or (row_str_values == "nan").all():
+                continue
 
-                    # Skip NaN values
-                    if pd.isna(value):
-                        continue
+            # Get serial number first for error reporting
+            serial_raw = row.get("Serial Number", "")
+            serial = str(serial_raw).strip() if pd.notna(serial_raw) else ""
 
-                    # Convert value based on type
-                    col_config = next((c for c in EXCEL_COLUMNS if c["name"] == col_name), None)
-
-                    if col_config:
-                        if col_config["type"] == "integer":
-                            try:
-                                value = int(float(str(value)))
-                            except:
-                                continue
-                        elif col_config["type"] == "decimal":
-                            try:
-                                value = float(str(value).replace(",", ""))
-                            except:
-                                continue
-                        elif col_config["type"] == "boolean":
-                            value = str(value).upper() == "TRUE"
-                        elif col_config["type"] == "date":
-                            if isinstance(value, str):
-                                try:
-                                    value = datetime.strptime(value, "%Y-%m-%d").date()
-                                except:
-                                    continue
-                        else:
-                            value = str(value).strip()
-
-                    if value:
-                        asset_data[db_field] = value
-
-            # Create asset in database
-            if "serial_number" in asset_data:
-                success, asset_id, error = create_asset(asset_data)
-
-                if success:
-                    results["success"] += 1
-                    results["imported_serials"].append(asset_data["serial_number"])
-                else:
-                    results["failed"] += 1
-                    results["errors"].append({
-                        "serial": asset_data.get("serial_number", "Unknown"),
-                        "error": error or "Unknown error"
-                    })
-            else:
+            # Skip rows with no serial number
+            if not serial or serial.lower() == "nan":
                 results["failed"] += 1
                 results["errors"].append({
-                    "serial": "Unknown",
-                    "error": "Missing serial number"
+                    "serial": f"Row {row_num}",
+                    "error": "Missing required field: Serial Number"
+                })
+                continue
+
+            # Skip sample row
+            if serial.upper() == "SAMPLE-001":
+                continue
+
+            # Build asset data dictionary using EXCEL COLUMN NAMES (not db_field)
+            # This is required because create_asset() expects Airtable-style field names
+            asset_data = {}
+            missing_fields = []
+
+            for col_config in EXCEL_COLUMNS:
+                col_name = col_config["name"]
+
+                if col_name not in df.columns:
+                    continue
+
+                value = row.get(col_name)
+
+                # Handle NaN/None/empty values
+                if pd.isna(value):
+                    value = None
+                elif isinstance(value, str):
+                    value = value.strip()
+                    if value == "" or value.lower() == "nan":
+                        value = None
+
+                # Skip None values
+                if value is None:
+                    continue
+
+                # Convert value based on type
+                try:
+                    if col_config["type"] == "integer":
+                        value = int(float(str(value)))
+                    elif col_config["type"] == "decimal":
+                        value = float(str(value).replace(",", ""))
+                    elif col_config["type"] == "boolean":
+                        value = str(value).upper() in ("TRUE", "YES", "1")
+                    elif col_config["type"] == "date":
+                        if isinstance(value, str):
+                            value = datetime.strptime(value, "%Y-%m-%d").date()
+                        # datetime objects are passed through
+                    else:
+                        value = str(value).strip()
+                except (ValueError, TypeError) as e:
+                    # Skip fields with conversion errors
+                    continue
+
+                # Only add non-empty values
+                if value is not None and value != "":
+                    # Use the COLUMN NAME as key (not db_field) because
+                    # create_asset() expects Airtable-style field names
+                    asset_data[col_name] = value
+
+            # Validate we have required data
+            if "Serial Number" not in asset_data:
+                results["failed"] += 1
+                results["errors"].append({
+                    "serial": serial or f"Row {row_num}",
+                    "error": "Missing required field: Serial Number"
+                })
+                continue
+
+            # Check if we have any meaningful data beyond serial number
+            if len(asset_data) < 1:
+                results["failed"] += 1
+                results["errors"].append({
+                    "serial": serial,
+                    "error": "Row contains no valid data"
+                })
+                continue
+
+            # Create asset in database
+            success, asset_id, error = create_asset(asset_data)
+
+            if success:
+                results["success"] += 1
+                results["imported_serials"].append(serial)
+            else:
+                results["failed"] += 1
+                # Provide more specific error messages
+                error_msg = error or "Unknown error"
+                if "No data provided" in str(error_msg):
+                    error_msg = "Row has no valid field values after processing"
+                results["errors"].append({
+                    "serial": serial,
+                    "error": error_msg
                 })
 
         except Exception as e:
+            serial = str(row.get("Serial Number", f"Row {row_num}"))
             results["failed"] += 1
             results["errors"].append({
-                "serial": str(row.get("Serial Number", "Unknown")),
-                "error": str(e)
+                "serial": serial,
+                "error": f"Processing error: {str(e)}"
             })
 
     return results
