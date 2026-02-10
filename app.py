@@ -4177,6 +4177,21 @@ st.markdown("""
         margin-right: 4px;
     }
 
+    /* ===== PAGINATION NAVIGATION ===== */
+    .pagination-nav {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        padding: 12px 0;
+        flex-wrap: wrap;
+    }
+    .pagination-nav .page-info {
+        font-size: 13px;
+        color: #6b7280;
+        margin: 0 12px;
+    }
+
     /* ===== ASSET QUICK ACTIONS PANEL ===== */
     .asset-detail-card {
         background: #ffffff;
@@ -4609,7 +4624,7 @@ def paginate_dataframe(df: pd.DataFrame, key: str, show_controls: bool = True) -
     if state["page"] >= state["total_pages"]:
         state["page"] = max(0, state["total_pages"] - 1)
 
-    # Show pagination controls if enabled
+    # Show top bar controls if enabled
     if show_controls and total_records > page_size:
         render_pagination_controls(key, state, total_records)
 
@@ -4621,7 +4636,7 @@ def paginate_dataframe(df: pd.DataFrame, key: str, show_controls: bool = True) -
 
 
 def render_pagination_controls(key: str, state: dict, total_records: int):
-    """Render pagination controls matching existing UI style."""
+    """Render top pagination bar: page size dropdown + showing info."""
     col1, col2, col3 = st.columns([1, 3, 1])
 
     with col1:
@@ -4647,6 +4662,96 @@ def render_pagination_controls(key: str, state: dict, total_records: int):
     with col3:
         # Page indicator
         st.markdown(f"<div style='text-align: right; padding: 8px; color: #64748b; font-size: 0.85rem;'>Page {state['page'] + 1}/{state['total_pages']}</div>", unsafe_allow_html=True)
+
+
+def render_page_navigation(key: str):
+    """Render page number navigation buttons below the table."""
+    state = get_pagination_state(key)
+    total_pages = state.get("total_pages", 1)
+    current_page = state.get("page", 0)
+
+    if total_pages <= 1:
+        return
+
+    def go_to_page(page_num):
+        get_pagination_state(key)["page"] = page_num
+
+    # Build page number list with ellipsis for large page counts
+    if total_pages <= 7:
+        page_numbers = list(range(total_pages))
+    else:
+        page_numbers = []
+        # Always show first page
+        page_numbers.append(0)
+        # Show 3 pages around current
+        start = max(1, current_page - 1)
+        end = min(total_pages - 1, current_page + 2)
+        # Ensure at least 3 nearby pages
+        if end - start < 2 and start == 1:
+            end = min(total_pages - 1, 3)
+        elif end - start < 2 and end == total_pages - 1:
+            start = max(1, total_pages - 4)
+        if start > 1:
+            page_numbers.append(-1)  # ellipsis
+        for i in range(start, end + 1):
+            if i not in page_numbers:
+                page_numbers.append(i)
+        if end < total_pages - 2:
+            page_numbers.append(-2)  # ellipsis (different key)
+        # Always show last page
+        if total_pages - 1 not in page_numbers:
+            page_numbers.append(total_pages - 1)
+
+    # Render navigation row
+    # Calculate columns: Prev + page buttons + Next
+    num_buttons = len(page_numbers) + 2  # +2 for Prev/Next
+    cols = st.columns(num_buttons)
+
+    # Previous button
+    with cols[0]:
+        st.button(
+            "◀ Prev",
+            key=f"pg_prev_{key}",
+            on_click=go_to_page,
+            args=(max(0, current_page - 1),),
+            disabled=(current_page == 0),
+            use_container_width=True
+        )
+
+    # Page number buttons
+    for i, page_num in enumerate(page_numbers):
+        with cols[i + 1]:
+            if page_num < 0:
+                st.markdown("<div style='text-align: center; padding: 8px; color: #9ca3af;'>...</div>", unsafe_allow_html=True)
+            elif page_num == current_page:
+                # Active page - styled via button type primary
+                st.button(
+                    str(page_num + 1),
+                    key=f"pg_{key}_{page_num}",
+                    on_click=go_to_page,
+                    args=(page_num,),
+                    type="primary",
+                    use_container_width=True
+                )
+            else:
+                st.button(
+                    str(page_num + 1),
+                    key=f"pg_{key}_{page_num}",
+                    on_click=go_to_page,
+                    args=(page_num,),
+                    use_container_width=True
+                )
+
+    # Next button
+    with cols[-1]:
+        st.button(
+            "Next ▶",
+            key=f"pg_next_{key}",
+            on_click=go_to_page,
+            args=(min(total_pages - 1, current_page + 1),),
+            disabled=(current_page >= total_pages - 1),
+            use_container_width=True
+        )
 
 
 def reset_pagination(key: str = None):
@@ -7644,6 +7749,7 @@ elif page == "Assets":
 
             styled_df = paginated_df[available_cols].style.apply(highlight_status, axis=1)
             st.dataframe(styled_df, hide_index=True)
+            render_page_navigation("assets_table")
 
         # ========== ASSET QUICK ACTIONS PANEL ==========
         st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
@@ -8619,6 +8725,7 @@ elif page == "Assignments":
                 # Apply pagination
                 paginated_assignments = paginate_dataframe(filtered_assignments, "assignments_table", show_controls=True)
                 st.dataframe(paginated_assignments, hide_index=True)
+                render_page_navigation("assignments_table")
             else:
                 render_empty_state("no_assignments")
 
@@ -8785,6 +8892,7 @@ elif page == "Issues & Repairs":
                 # Apply pagination
                 paginated_issues = paginate_dataframe(filtered_issues, "issues_table", show_controls=True)
                 st.dataframe(paginated_issues[available_cols], hide_index=True)
+                render_page_navigation("issues_table")
             else:
                 render_empty_state("no_issues", show_action=False)
 
@@ -8812,6 +8920,7 @@ elif page == "Issues & Repairs":
                 # Apply pagination
                 paginated_repairs = paginate_dataframe(repairs_df, "repairs_table", show_controls=True)
                 st.dataframe(paginated_repairs[available_cols], hide_index=True)
+                render_page_navigation("repairs_table")
             else:
                 render_empty_state("no_repairs", show_action=False)
 
@@ -8939,6 +9048,7 @@ elif page == "Clients":
                             if not assets_df.empty and "Current Location" in assets_df.columns:
                                 asset_count = len(assets_df[assets_df["Current Location"] == client.get("Client Name", "")])
                                 st.write(f"**Assets:** {asset_count}")
+                render_page_navigation("clients_table")
             else:
                 render_empty_state("no_clients", show_action=False)
                 # Add client button inline
@@ -10524,32 +10634,15 @@ elif page == "Import/Export":
             # Preview section
             st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
             with st.expander("👁 Preview Export Data", expanded=False):
-                # Entries limit selector
-                limit_col1, limit_col2, limit_col3 = st.columns([1, 2, 3])
-                with limit_col1:
-                    entries_options = [10, 25, 50, 100, "All"]
-                    selected_limit = st.selectbox(
-                        "Show",
-                        options=entries_options,
-                        index=0,
-                        key="export_preview_limit",
-                        label_visibility="visible"
-                    )
-                with limit_col2:
-                    st.markdown("<div style='padding-top: 32px; color: #6b7280;'>records</div>", unsafe_allow_html=True)
-
-                # Select columns to show (using actual DB column names with display format)
+                # Select columns to show
                 display_cols = ['Serial Number', 'Asset Type', 'Brand', 'Model', 'Current Status', 'Current Location']
                 available_cols = [c for c in display_cols if c in export_df.columns]
+                export_preview_source = export_df[available_cols] if available_cols else export_df.iloc[:, :6]
 
-                # Apply limit
-                if selected_limit == "All":
-                    preview_df = export_df[available_cols] if available_cols else export_df.iloc[:, :6]
-                else:
-                    preview_df = export_df[available_cols].head(selected_limit) if available_cols else export_df.iloc[:, :6].head(selected_limit)
-
-                st.dataframe(preview_df, use_container_width=True, height=400)
-                st.caption(f"Showing {len(preview_df)} of {len(export_df)} records")
+                # Paginated preview with page navigation
+                paginated_export = paginate_dataframe(export_preview_source, "export_preview_table", show_controls=True)
+                st.dataframe(paginated_export, use_container_width=True, height=400)
+                render_page_navigation("export_preview_table")
         else:
             st.warning("No assets found in the database to export.")
 
