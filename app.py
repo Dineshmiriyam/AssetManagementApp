@@ -4006,6 +4006,8 @@ st.markdown("""
     .kpi-card.green .kpi-card-value { color: #16a34a; }
     .kpi-card.amber .kpi-card-value { color: #d97706; }
     .kpi-card.red .kpi-card-value { color: #dc2626; }
+    .kpi-card.purple .kpi-card-value { color: #8b5cf6; }
+    .kpi-card.gray .kpi-card-value { color: #6b7280; }
 
     /* Label - Small, muted, below value */
     .kpi-card-label {
@@ -6119,6 +6121,7 @@ if page == "Dashboard":
         under_repair = len(assets_df[assets_df.get("Current Status", pd.Series()) == "WITH_VENDOR_REPAIR"]) if "Current Status" in assets_df.columns else 0
         returned = len(assets_df[assets_df.get("Current Status", pd.Series()) == "RETURNED_FROM_CLIENT"]) if "Current Status" in assets_df.columns else 0
         sold = len(assets_df[assets_df.get("Current Status", pd.Series()) == "SOLD"]) if "Current Status" in assets_df.columns else 0
+        disposed = len(assets_df[assets_df.get("Current Status", pd.Series()) == "DISPOSED"]) if "Current Status" in assets_df.columns else 0
         testing_count = len(assets_df[assets_df["Current Status"] == "IN_OFFICE_TESTING"]) if "Current Status" in assets_df.columns else 0
 
         # Get current role
@@ -6648,6 +6651,44 @@ if page == "Dashboard":
             if st.button("View Returned", key="kpi_returned", use_container_width=True):
                 st.session_state.current_page = "Assets"
                 st.session_state.asset_filter = "RETURNED_FROM_CLIENT"
+                safe_rerun()
+
+        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+
+        # ========== RETIRED ASSETS (Sold + Disposed) ==========
+        st.markdown("""
+        <div class="section-title">
+            <div class="section-title-icon" style="background: #6b7280;"></div>
+            RETIRED ASSETS
+        </div>
+        """, unsafe_allow_html=True)
+
+        retired_col1, retired_col2, retired_spacer1, retired_spacer2, retired_spacer3 = st.columns(5)
+
+        with retired_col1:
+            st.markdown(f"""
+            <div class="kpi-card purple" style="cursor: pointer;">
+                <div class="kpi-card-title">SOLD</div>
+                <div class="kpi-card-value">{sold}</div>
+                <div class="kpi-card-label">Permanently sold</div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("View Sold", key="kpi_sold", use_container_width=True):
+                st.session_state.current_page = "Assets"
+                st.session_state.asset_filter = "SOLD"
+                safe_rerun()
+
+        with retired_col2:
+            st.markdown(f"""
+            <div class="kpi-card gray" style="cursor: pointer;">
+                <div class="kpi-card-title">DISPOSED</div>
+                <div class="kpi-card-value">{disposed}</div>
+                <div class="kpi-card-label">End of life</div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("View Disposed", key="kpi_disposed", use_container_width=True):
+                st.session_state.current_page = "Assets"
+                st.session_state.asset_filter = "DISPOSED"
                 safe_rerun()
 
         st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
