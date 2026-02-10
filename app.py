@@ -4178,18 +4178,19 @@ st.markdown("""
     }
 
     /* ===== PAGINATION NAVIGATION ===== */
-    .pagination-nav {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 4px;
-        padding: 12px 0;
-        flex-wrap: wrap;
+    /* Active page button - Orange */
+    [data-testid="stBaseButton-primary"] {
+        background: linear-gradient(135deg, #f97316, #ea580c) !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 8px !important;
+        font-weight: 700 !important;
+        font-size: 14px !important;
+        box-shadow: 0 2px 6px rgba(249, 115, 22, 0.35) !important;
     }
-    .pagination-nav .page-info {
-        font-size: 13px;
-        color: #6b7280;
-        margin: 0 12px;
+    [data-testid="stBaseButton-primary"]:hover {
+        background: linear-gradient(135deg, #ea580c, #dc2626) !important;
+        box-shadow: 0 3px 10px rgba(249, 115, 22, 0.45) !important;
     }
 
     /* ===== ASSET QUICK ACTIONS PANEL ===== */
@@ -4681,34 +4682,31 @@ def render_page_navigation(key: str):
         page_numbers = list(range(total_pages))
     else:
         page_numbers = []
-        # Always show first page
         page_numbers.append(0)
-        # Show 3 pages around current
         start = max(1, current_page - 1)
         end = min(total_pages - 1, current_page + 2)
-        # Ensure at least 3 nearby pages
         if end - start < 2 and start == 1:
             end = min(total_pages - 1, 3)
         elif end - start < 2 and end == total_pages - 1:
             start = max(1, total_pages - 4)
         if start > 1:
-            page_numbers.append(-1)  # ellipsis
+            page_numbers.append(-1)
         for i in range(start, end + 1):
             if i not in page_numbers:
                 page_numbers.append(i)
         if end < total_pages - 2:
-            page_numbers.append(-2)  # ellipsis (different key)
-        # Always show last page
+            page_numbers.append(-2)
         if total_pages - 1 not in page_numbers:
             page_numbers.append(total_pages - 1)
 
-    # Render navigation row
-    # Calculate columns: Prev + page buttons + Next
-    num_buttons = len(page_numbers) + 2  # +2 for Prev/Next
-    cols = st.columns(num_buttons)
+    # Centered navigation: spacer | Prev | pages | Next | page info | spacer
+    num_nav_items = len(page_numbers) + 2  # Prev + pages + Next
+    # Column widths: [spacer, prev, ...pages..., next, info, spacer]
+    col_widths = [1.5, 1] + [0.6] * len(page_numbers) + [1, 2, 1.5]
+    cols = st.columns(col_widths)
 
     # Previous button
-    with cols[0]:
+    with cols[1]:
         st.button(
             "◀ Prev",
             key=f"pg_prev_{key}",
@@ -4720,11 +4718,10 @@ def render_page_navigation(key: str):
 
     # Page number buttons
     for i, page_num in enumerate(page_numbers):
-        with cols[i + 1]:
+        with cols[i + 2]:
             if page_num < 0:
-                st.markdown("<div style='text-align: center; padding: 8px; color: #9ca3af;'>...</div>", unsafe_allow_html=True)
+                st.markdown("<div style='text-align: center; padding: 8px; color: #9ca3af; font-weight: 500;'>...</div>", unsafe_allow_html=True)
             elif page_num == current_page:
-                # Active page - styled via button type primary
                 st.button(
                     str(page_num + 1),
                     key=f"pg_{key}_{page_num}",
@@ -4743,7 +4740,7 @@ def render_page_navigation(key: str):
                 )
 
     # Next button
-    with cols[-1]:
+    with cols[len(page_numbers) + 2]:
         st.button(
             "Next ▶",
             key=f"pg_next_{key}",
@@ -4752,6 +4749,12 @@ def render_page_navigation(key: str):
             disabled=(current_page >= total_pages - 1),
             use_container_width=True
         )
+
+    # Page info text
+    start_record = current_page * state["page_size"] + 1
+    end_record = min((current_page + 1) * state["page_size"], state.get("total_records", 0))
+    with cols[len(page_numbers) + 3]:
+        st.markdown(f"<div style='text-align: center; padding: 8px 0; color: #6b7280; font-size: 13px; white-space: nowrap;'>Page {current_page + 1} of {total_pages}</div>", unsafe_allow_html=True)
 
 
 def reset_pagination(key: str = None):
