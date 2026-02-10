@@ -8124,7 +8124,7 @@ elif page == "Quick Actions":
                             st.info(f"**{asset_row.get('Brand', 'N/A')} {asset_row.get('Model', 'N/A')}** | RAM: {asset_row.get('RAM (GB)', 'N/A')}GB")
 
                     with col2:
-                        client_options = clients_df["Client Name"].tolist() if not clients_df.empty and "Client Name" in clients_df.columns else []
+                        client_options = sorted(clients_df["Client Name"].dropna().unique().tolist()) if not clients_df.empty and "Client Name" in clients_df.columns else []
                         selected_client = st.selectbox("Select Client", client_options, key="ship_client")
 
                     shipment_date = st.date_input("Shipment Date", value=date.today(), key="ship_date")
