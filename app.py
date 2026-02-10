@@ -4102,6 +4102,131 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     }
 
+    /* ===== ASSETS SEARCH FORM STYLING ===== */
+    /* Primary Search button - Orange */
+    [data-testid="stBaseButton-primaryFormSubmit"],
+    [data-testid="stForm"] button[kind="primaryFormSubmit"] {
+        background: linear-gradient(135deg, #f97316, #ea580c) !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        padding: 10px 24px !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 0 2px 4px rgba(249, 115, 22, 0.3) !important;
+    }
+    [data-testid="stBaseButton-primaryFormSubmit"]:hover,
+    [data-testid="stForm"] button[kind="primaryFormSubmit"]:hover {
+        background: linear-gradient(135deg, #ea580c, #dc2626) !important;
+        box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    /* Secondary Clear button - Ghost style */
+    [data-testid="stBaseButton-secondaryFormSubmit"],
+    [data-testid="stBaseButton-formSubmit"],
+    [data-testid="stForm"] button[kind="secondaryFormSubmit"],
+    [data-testid="stForm"] button[kind="formSubmit"] {
+        background: transparent !important;
+        color: #6b7280 !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 8px !important;
+        font-weight: 500 !important;
+        font-size: 13px !important;
+        padding: 10px 24px !important;
+        transition: all 0.2s ease !important;
+    }
+    [data-testid="stBaseButton-secondaryFormSubmit"]:hover,
+    [data-testid="stBaseButton-formSubmit"]:hover,
+    [data-testid="stForm"] button[kind="secondaryFormSubmit"]:hover,
+    [data-testid="stForm"] button[kind="formSubmit"]:hover {
+        background: #f3f4f6 !important;
+        color: #374151 !important;
+        border-color: #9ca3af !important;
+    }
+
+    /* ===== ACTIVE FILTER PILLS ===== */
+    .filter-pills-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 8px 0;
+        align-items: center;
+    }
+    .filter-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+    }
+    .filter-pill-label {
+        color: #6b7280;
+        font-weight: 400;
+    }
+    .filter-pills-title {
+        font-size: 12px;
+        color: #9ca3af;
+        font-weight: 500;
+        margin-right: 4px;
+    }
+
+    /* ===== ASSET QUICK ACTIONS PANEL ===== */
+    .asset-detail-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 20px;
+        margin: 8px 0;
+    }
+    .asset-detail-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    .asset-detail-serial {
+        font-size: 18px;
+        font-weight: 700;
+        color: #111827;
+    }
+    .asset-detail-status {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .asset-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+    }
+    .asset-detail-item {
+        padding: 8px 0;
+    }
+    .asset-detail-item-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #9ca3af;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+    .asset-detail-item-value {
+        font-size: 14px;
+        font-weight: 500;
+        color: #374151;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -7047,6 +7172,27 @@ if page == "Dashboard":
 elif page == "Assets":
     st.markdown('<p class="main-header">All Assets</p>', unsafe_allow_html=True)
 
+    # Summary badges (quick status overview at the top)
+    if not assets_df.empty and "Current Status" in assets_df.columns:
+        total_count = len(assets_df)
+        deployed_count = len(assets_df[assets_df["Current Status"] == "WITH_CLIENT"])
+        available_count = len(assets_df[assets_df["Current Status"] == "IN_STOCK_WORKING"])
+        returned_count = len(assets_df[assets_df["Current Status"] == "RETURNED_FROM_CLIENT"])
+        repair_count = len(assets_df[assets_df["Current Status"] == "WITH_VENDOR_REPAIR"])
+        testing_count = len(assets_df[assets_df["Current Status"] == "IN_OFFICE_TESTING"])
+
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 0 16px 0;">
+            <span style="font-size: 14px; color: #6b7280;">Total: <strong style="color: #111827; font-size: 16px;">{total_count}</strong></span>
+            <span style="color: #e5e7eb;">|</span>
+            <span style="font-size: 12px; font-weight: 600; color: #FF6B35; padding: 3px 10px; background: #FF6B3515; border-radius: 12px;">{deployed_count} Deployed</span>
+            <span style="font-size: 12px; font-weight: 600; color: #4CAF50; padding: 3px 10px; background: #4CAF5015; border-radius: 12px;">{available_count} Available</span>
+            <span style="font-size: 12px; font-weight: 600; color: #2196F3; padding: 3px 10px; background: #2196F315; border-radius: 12px;">{returned_count} Returned</span>
+            <span style="font-size: 12px; font-weight: 600; color: #FF9800; padding: 3px 10px; background: #FF980015; border-radius: 12px;">{repair_count} In Repair</span>
+            <span style="font-size: 12px; font-weight: 600; color: #9C27B0; padding: 3px 10px; background: #9C27B015; border-radius: 12px;">{testing_count} Testing</span>
+        </div>
+        """, unsafe_allow_html=True)
+
     if not api:
         st.warning("Please configure your Airtable API key in Settings first.")
     elif st.session_state.get('data_load_error'):
@@ -7095,38 +7241,72 @@ elif page == "Assets":
             del st.session_state.asset_search_serial
             st.info(f"🔗 Navigated from linked record. Showing asset: **{linked_serial}**")
 
-        # Search bar (searches Serial, Brand, Model)
-        search = st.text_input("🔍 Search (Serial Number, Brand, Model)", key="assets_search", placeholder="Type to search...")
+        # Clear filters flag check BEFORE form (callback + flag pattern)
+        if st.session_state.get('clear_asset_filters_flag', False):
+            for key in ["assets_search", "asset_filter", "brand_filter"]:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.session_state.clear_asset_filters_flag = False
 
-        # Filters row
-        col1, col2, col3, col4, col5 = st.columns([1, 1, 1, 1, 0.5])
+        # Search and Filters (wrapped in form to prevent rerun on every keystroke)
+        with st.form(key="assets_search_form"):
+            search = st.text_input("🔍 Search (Serial Number, Brand, Model)", key="assets_search", placeholder="Type to search...")
 
-        with col1:
-            filter_options = ["All"] + ASSET_STATUSES
-            default_index = filter_options.index(default_status_filter) if default_status_filter in filter_options else 0
-            status_filter = st.selectbox("Status", filter_options, index=default_index)
+            # Filters row
+            col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
-        with col2:
-            brand_list = sorted(list(assets_df["Brand"].dropna().unique())) if "Brand" in assets_df.columns else []
-            brand_options = ["All"] + brand_list
-            default_brand_index = brand_options.index(default_brand_filter) if default_brand_filter in brand_options else 0
-            brand_filter = st.selectbox("Brand", brand_options, index=default_brand_index)
+            with col1:
+                filter_options = ["All"] + ASSET_STATUSES
+                default_index = filter_options.index(default_status_filter) if default_status_filter in filter_options else 0
+                status_filter = st.selectbox("Status", filter_options, index=default_index)
 
-        with col3:
-            type_list = sorted(list(assets_df["Asset Type"].dropna().unique())) if "Asset Type" in assets_df.columns else []
-            type_filter = st.selectbox("Type", ["All"] + type_list)
+            with col2:
+                brand_list = sorted(list(assets_df["Brand"].dropna().unique())) if "Brand" in assets_df.columns else []
+                brand_options = ["All"] + brand_list
+                default_brand_index = brand_options.index(default_brand_filter) if default_brand_filter in brand_options else 0
+                brand_filter = st.selectbox("Brand", brand_options, index=default_brand_index)
 
-        with col4:
-            location_list = sorted(list(assets_df["Current Location"].dropna().unique())) if "Current Location" in assets_df.columns else []
-            location_filter = st.selectbox("Location", ["All"] + location_list)
+            with col3:
+                type_list = sorted(list(assets_df["Asset Type"].dropna().unique())) if "Asset Type" in assets_df.columns else []
+                type_filter = st.selectbox("Type", ["All"] + type_list)
 
-        with col5:
-            st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-            if st.button("Clear", key="clear_asset_filters", use_container_width=True):
-                for key in ["assets_search", "asset_filter", "brand_filter"]:
-                    if key in st.session_state:
-                        del st.session_state[key]
-                safe_rerun()
+            with col4:
+                location_list = sorted(list(assets_df["Current Location"].dropna().unique())) if "Current Location" in assets_df.columns else []
+                location_filter = st.selectbox("Location", ["All"] + location_list)
+
+            # Search and Clear buttons side by side inside form
+            btn_col1, btn_col2 = st.columns([3, 1])
+            with btn_col1:
+                search_submitted = st.form_submit_button("🔍 Search", use_container_width=True, type="primary")
+            with btn_col2:
+                clear_submitted = st.form_submit_button("Clear Filters", use_container_width=True)
+
+        # Handle clear - set flag and rerun so flag check above clears state
+        if clear_submitted:
+            st.session_state.clear_asset_filters_flag = True
+            safe_rerun()
+
+        # Active filter indicator pills
+        active_filters = []
+        if status_filter != "All":
+            active_filters.append(f'<span class="filter-pill"><span class="filter-pill-label">Status:</span> {status_filter}</span>')
+        if brand_filter != "All":
+            active_filters.append(f'<span class="filter-pill"><span class="filter-pill-label">Brand:</span> {brand_filter}</span>')
+        if type_filter != "All":
+            active_filters.append(f'<span class="filter-pill"><span class="filter-pill-label">Type:</span> {type_filter}</span>')
+        if location_filter != "All":
+            active_filters.append(f'<span class="filter-pill"><span class="filter-pill-label">Location:</span> {location_filter}</span>')
+        if search:
+            active_filters.append(f'<span class="filter-pill"><span class="filter-pill-label">Search:</span> {search}</span>')
+
+        if active_filters:
+            pills_html = ''.join(active_filters)
+            st.markdown(f"""
+            <div class="filter-pills-container">
+                <span class="filter-pills-title">Active filters:</span>
+                {pills_html}
+            </div>
+            """, unsafe_allow_html=True)
 
         # Apply filters
         filtered_df = assets_df.copy()
@@ -7196,32 +7376,43 @@ elif page == "Assets":
                 search_mask |= filtered_df["Model"].str.contains(search, case=False, na=False)
             filtered_df = filtered_df[search_mask]
 
-        # Results count with status legend
-        st.markdown(f"""
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; margin-bottom: 8px; flex-wrap: wrap; gap: 12px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
+        # Results count bar with export button
+        results_col1, results_col2 = st.columns([3, 1])
+        with results_col1:
+            is_filtered = len(filtered_df) != len(assets_df)
+            count_style = "font-size: 18px; color: #f97316; font-weight: 700;" if is_filtered else "font-size: 16px; color: #3b82f6; font-weight: 700;"
+            st.markdown(f"""
+            <div style="display: flex; align-items: center; gap: 8px; padding: 12px 0;">
                 <span style="font-size: 14px; color: #374151; font-weight: 500;">Showing</span>
-                <span style="font-size: 16px; color: #3b82f6; font-weight: 700;">{len(filtered_df)}</span>
+                <span style="{count_style}">{len(filtered_df)}</span>
                 <span style="font-size: 14px; color: #6b7280;">of {len(assets_df)} assets</span>
+                <span style="margin-left: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                    <span style="font-size: 11px; color: #4CAF50; font-weight: 600; padding: 2px 8px; background: #4CAF5020; border-radius: 4px;">In Stock</span>
+                    <span style="font-size: 11px; color: #FF6B35; font-weight: 600; padding: 2px 8px; background: #FF6B3520; border-radius: 4px;">With Client</span>
+                    <span style="font-size: 11px; color: #2196F3; font-weight: 600; padding: 2px 8px; background: #2196F320; border-radius: 4px;">Returned</span>
+                    <span style="font-size: 11px; color: #9C27B0; font-weight: 600; padding: 2px 8px; background: #9C27B020; border-radius: 4px;">Testing</span>
+                    <span style="font-size: 11px; color: #FF9800; font-weight: 600; padding: 2px 8px; background: #FF980020; border-radius: 4px;">Repair</span>
+                </span>
             </div>
-            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                <span style="font-size: 11px; color: #4CAF50; font-weight: 600; padding: 2px 8px; background: #4CAF5020; border-radius: 4px;">In Stock</span>
-                <span style="font-size: 11px; color: #FF6B35; font-weight: 600; padding: 2px 8px; background: #FF6B3520; border-radius: 4px;">With Client</span>
-                <span style="font-size: 11px; color: #2196F3; font-weight: 600; padding: 2px 8px; background: #2196F320; border-radius: 4px;">Returned</span>
-                <span style="font-size: 11px; color: #9C27B0; font-weight: 600; padding: 2px 8px; background: #9C27B020; border-radius: 4px;">Testing</span>
-                <span style="font-size: 11px; color: #FF9800; font-weight: 600; padding: 2px 8px; background: #FF980020; border-radius: 4px;">Repair</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+        with results_col2:
+            csv = filtered_df.to_csv(index=False)
+            st.download_button(
+                label="📥 Export CSV",
+                data=csv,
+                file_name=f"assets_export_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
 
         # ========== BULK OPERATIONS SECTION ==========
         # Initialize session state for bulk selection
         if 'bulk_selected_assets' not in st.session_state:
             st.session_state.bulk_selected_assets = []
 
-        # Display columns for table
-        display_cols = ["Serial Number", "Asset Type", "Brand", "Model", "RAM (GB)", "Storage (GB)",
-                       "Current Status", "Current Location", "Office License Key", "Reuse Count"]
+        # Display columns for table (prioritized order - most important first)
+        display_cols = ["Serial Number", "Brand", "Model", "Current Status", "Current Location",
+                       "Asset Type", "RAM (GB)", "Storage (GB)", "Office License Key", "Reuse Count"]
         available_cols = [c for c in display_cols if c in filtered_df.columns]
 
         if available_cols and len(filtered_df) > 0:
@@ -7454,6 +7645,99 @@ elif page == "Assets":
             styled_df = paginated_df[available_cols].style.apply(highlight_status, axis=1)
             st.dataframe(styled_df, hide_index=True)
 
+        # ========== ASSET QUICK ACTIONS PANEL ==========
+        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+        with st.expander("⚡ Asset Quick Actions", expanded=False):
+            if "Serial Number" in filtered_df.columns and len(filtered_df) > 0:
+                qa_serial_options = filtered_df["Serial Number"].dropna().unique().tolist()
+                if qa_serial_options:
+                    selected_qa_serial = st.selectbox(
+                        "Select an asset",
+                        options=qa_serial_options,
+                        key="qa_asset_serial"
+                    )
+
+                    if selected_qa_serial:
+                        qa_asset_info = filtered_df[filtered_df["Serial Number"] == selected_qa_serial]
+                        if not qa_asset_info.empty:
+                            qa_row = qa_asset_info.iloc[0]
+                            qa_status = qa_row.get('Current Status', 'N/A')
+                            qa_status_color = STATUS_COLORS.get(qa_status, '#6b7280')
+
+                            # Asset detail card
+                            st.markdown(f"""
+                            <div class="asset-detail-card">
+                                <div class="asset-detail-header">
+                                    <span class="asset-detail-serial">{selected_qa_serial}</span>
+                                    <span class="asset-detail-status" style="background: {qa_status_color}20; color: {qa_status_color};">{qa_status}</span>
+                                </div>
+                                <div class="asset-detail-grid">
+                                    <div class="asset-detail-item">
+                                        <div class="asset-detail-item-label">Brand / Model</div>
+                                        <div class="asset-detail-item-value">{qa_row.get('Brand', 'N/A')} {qa_row.get('Model', '')}</div>
+                                    </div>
+                                    <div class="asset-detail-item">
+                                        <div class="asset-detail-item-label">Asset Type</div>
+                                        <div class="asset-detail-item-value">{qa_row.get('Asset Type', 'N/A')}</div>
+                                    </div>
+                                    <div class="asset-detail-item">
+                                        <div class="asset-detail-item-label">Location</div>
+                                        <div class="asset-detail-item-value">{qa_row.get('Current Location', 'N/A')}</div>
+                                    </div>
+                                    <div class="asset-detail-item">
+                                        <div class="asset-detail-item-label">RAM / Storage</div>
+                                        <div class="asset-detail-item-value">{qa_row.get('RAM (GB)', 'N/A')} GB / {qa_row.get('Storage (GB)', 'N/A')} GB</div>
+                                    </div>
+                                    <div class="asset-detail-item">
+                                        <div class="asset-detail-item-label">Reuse Count</div>
+                                        <div class="asset-detail-item-value">{qa_row.get('Reuse Count', 0)}</div>
+                                    </div>
+                                    <div class="asset-detail-item">
+                                        <div class="asset-detail-item-label">Notes</div>
+                                        <div class="asset-detail-item-value">{qa_row.get('Notes', '-') or '-'}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                            # Quick action buttons
+                            qa_action_col1, qa_action_col2, qa_action_col3 = st.columns(3)
+
+                            with qa_action_col1:
+                                qa_new_status = st.selectbox(
+                                    "Change Status To",
+                                    options=[s for s in ASSET_STATUSES if s != qa_status],
+                                    key="qa_new_status"
+                                )
+
+                            with qa_action_col2:
+                                st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+                                if st.button("🔄 Update Status", key="qa_update_status", type="primary", use_container_width=True):
+                                    asset_id = qa_row.get('_id', '')
+                                    if asset_id:
+                                        success, error_msg = update_asset_status(asset_id, qa_new_status)
+                                        if success:
+                                            log_activity_event(
+                                                action_type="STATUS_CHANGE",
+                                                category="asset",
+                                                user_role=st.session_state.user_role,
+                                                description=f"Changed {selected_qa_serial} from {qa_status} to {qa_new_status}",
+                                                success=True,
+                                                metadata={"serial": selected_qa_serial, "old_status": qa_status, "new_status": qa_new_status}
+                                            )
+                                            st.success(f"Updated {selected_qa_serial} to {qa_new_status}")
+                                            safe_rerun()
+                                        else:
+                                            st.error(f"Failed: {error_msg}")
+
+                            with qa_action_col3:
+                                st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+                                if st.button("📋 View Full History", key="qa_view_history", use_container_width=True):
+                                    st.session_state.asset_search_serial = selected_qa_serial
+                                    safe_rerun()
+            else:
+                st.info("No assets available.")
+
         # ========== VIEW ASSET HISTORY - LINKED RECORDS NAVIGATION ==========
         st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
         with st.expander("🔗 View Asset History (Assignments & Issues)", expanded=False):
@@ -7535,19 +7819,6 @@ elif page == "Assets":
                             st.info("No issues data available.")
             else:
                 st.info("No assets available to view history.")
-
-        # Export actions
-        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
-        export_col1, export_col2, export_col3 = st.columns([1, 1, 2])
-
-        with export_col1:
-            csv = filtered_df.to_csv(index=False)
-            st.download_button(
-                label="Export to CSV",
-                data=csv,
-                file_name=f"assets_export_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                mime="text/csv"
-            )
 
 # ============================================
 # QUICK ACTIONS PAGE
