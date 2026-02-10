@@ -1,7 +1,7 @@
 # NXTBY Asset Management System - Project Context
 
-> **Last Updated:** February 6, 2026
-> **Version:** 1.1
+> **Last Updated:** February 10, 2026
+> **Version:** 1.2
 > **Status:** Production (Internal Use)
 
 ---
@@ -166,6 +166,7 @@ reportlab==4.1.0
 ### Dashboard
 - [x] Role-based views (Admin/Operations/Finance see different data)
 - [x] KPI cards (Total, Deployed, Available, In Repair, Returned)
+- [x] Retired Assets KPI cards (Sold, Disposed) in separate section
 - [x] KPI cards clickable - navigate to filtered Assets page
 - [x] SLA indicators (Critical, Warning, OK)
 - [x] Revenue metrics (Admin/Finance only)
@@ -174,12 +175,17 @@ reportlab==4.1.0
 
 ### Assets Page
 - [x] View all assets with filters
-- [x] Search by serial number, brand, model
+- [x] Search by serial number, brand, model (wrapped in st.form)
 - [x] Filter by status, brand, type, location
+- [x] Summary status badges below header
+- [x] Active filter indicator pills
 - [x] Bulk operations (select multiple, change status, assign)
 - [x] Individual asset actions (Fix, Send to Vendor)
+- [x] Per-row quick actions panel
 - [x] SLA filter integration
 - [x] Linked record navigation
+- [x] Page navigation buttons (1, 2, 3...) below table
+- [x] Export CSV button at top-right
 
 ### Quick Actions
 - [x] Assign asset to client
@@ -223,8 +229,9 @@ reportlab==4.1.0
 ### Other Features
 - [x] QR code generation (single and bulk PDF)
 - [x] Excel import
-- [x] Session management
+- [x] Session management with token persistence (survives hard refresh)
 - [x] Login/logout with activity logging
+- [x] Pagination navigation on all tables (Assets, Assignments, Issues, Repairs, Clients, Export)
 
 ---
 
@@ -394,7 +401,7 @@ Local Development
 
 ### Streamlit Limitations
 1. **No Real-time Updates:** Page must refresh to see changes from other users
-2. **Session State:** Lost on full page refresh (mitigated with session caching)
+2. **Session State:** Lost on full page refresh (mitigated with `st.query_params` token persistence)
 3. **Custom JavaScript:** `st.markdown()` blocks `<script>` tags; `components.html()` runs in sandboxed iframe
 4. **HTML Not Clickable:** Cannot make HTML elements trigger Python callbacks - only Streamlit widgets can
 
@@ -403,11 +410,21 @@ Local Development
 2. **Chart Clicks:** Uses `streamlit_plotly_events` for click detection
 3. **Session Validation:** Cached for 5 minutes to prevent login flicker
 4. **Anchor Tags Avoided:** All navigation uses `st.button()` to preserve session state
+5. **Session Persistence:** Token stored in `st.query_params["sid"]` to survive hard refresh
+6. **Anti-Flicker:** CSS `fadeIn` animation prevents layout shift on login page
 
 ### Technical Debt
 1. `app.py` is large (~10,000 lines) - could be split into modules
 2. Some CSS is duplicated
 3. No automated tests
+
+### Resolved Issues (Feb 10, 2026)
+1. ~~Login lost on hard refresh (production)~~ → Fixed with `st.query_params` session token persistence
+2. ~~Sidebar hidden after login (production)~~ → Fixed with `initial_sidebar_state="expanded"`
+3. ~~Login page layout shift~~ → Fixed with CSS fadeIn animation + logo space reservation
+4. ~~Duplicate clients in Select Client dropdown~~ → Fixed with `.unique()` + DB cleanup
+5. ~~"With_Client" shown as client name in charts~~ → Fixed with DB location data correction
+6. ~~Localhost and production data out of sync~~ → Synced localhost from production
 
 ### Resolved Issues (Feb 6, 2026)
 1. ~~Login loop when clicking dashboard cards~~ → Fixed with Streamlit buttons
@@ -430,8 +447,48 @@ Local Development
 | Feb 2026 | Fixed navigation issues |
 | Feb 6, 2026 | Fixed login loop issue |
 | Feb 6, 2026 | Implemented merged card+button design |
+| Feb 10, 2026 | Assets page enhancements (search form, badges, quick actions) |
+| Feb 10, 2026 | Pagination navigation on all tables |
+| Feb 10, 2026 | Session persistence on hard refresh |
+| Feb 10, 2026 | Data quality fixes (duplicate clients, asset locations) |
+| Feb 10, 2026 | Retired Assets KPI cards (Sold, Disposed) |
+| Feb 10, 2026 | Localhost synced from production database |
 
-### Recent Changes (February 6, 2026)
+### Recent Changes (February 10, 2026)
+
+#### Session Persistence on Hard Refresh
+- **Problem:** Production hard refresh lost login session
+- **Root Cause:** Streamlit session state is in-memory, tied to WebSocket
+- **Solution:** Persist session token in `st.query_params["sid"]`, restore on page load via `validate_session()`
+
+#### Sidebar Visibility Fix
+- **Problem:** Sidebar hidden after login on production
+- **Solution:** Changed `initial_sidebar_state` from `"collapsed"` to `"expanded"`
+
+#### Assets Page Enhancements (6 changes)
+1. Orange Search button + ghost Clear Filters (wrapped in `st.form`)
+2. Summary status badges below header
+3. Active filter indicator pills
+4. Table column reorder (Serial, Brand, Model, Status, Location first)
+5. Export CSV moved to top-right
+6. Per-row quick actions panel
+
+#### Pagination Navigation
+- Added page number buttons (1, 2, 3...) below all 6 tables
+- Active page highlighted orange, centered layout with "Page X of Y"
+
+#### Data Quality Fixes
+- Removed 6 duplicate client records from production DB
+- Fixed 4 assets with `current_location = 'With_Client'` → `'X3i Solution'`
+- Fixed client dropdown deduplication (`.unique()`)
+- Synced localhost database from production
+
+#### Retired Assets KPI Cards
+- New "RETIRED ASSETS" section on Dashboard
+- Sold (purple #8b5cf6) and Disposed (gray #6b7280) cards
+- Clickable → navigates to Assets page filtered by status
+
+### Previous Changes (February 6, 2026)
 
 #### Login Loop Fix
 - **Problem:** Clicking any dashboard card caused redirect to login page in infinite loop
