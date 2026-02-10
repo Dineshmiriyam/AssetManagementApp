@@ -374,6 +374,7 @@ def login_user(user_data: dict):
     """
     Set session state after successful login.
     Stores session token for server-side validation.
+    Persists session token in URL query params for hard refresh recovery.
     """
     st.session_state.authenticated = True
     st.session_state.user_id = user_data['id']
@@ -388,6 +389,14 @@ def login_user(user_data: dict):
     st.session_state.login_error = None
     st.session_state.login_processing = False
 
+    # Persist session token in URL for hard refresh recovery
+    try:
+        token = user_data.get('session_token')
+        if token:
+            st.query_params["sid"] = f"{user_data['id']}:{token}"
+    except Exception:
+        pass  # Don't fail login if query params can't be set
+
 
 def logout_user(reason: str = None):
     """
@@ -399,6 +408,13 @@ def logout_user(reason: str = None):
             invalidate_session(st.session_state.user_id)
         except Exception:
             pass  # Don't fail logout if invalidation fails
+
+    # Clear persisted session from URL
+    try:
+        if "sid" in st.query_params:
+            del st.query_params["sid"]
+    except Exception:
+        pass
 
     # Clear all session state
     st.session_state.authenticated = False
@@ -461,12 +477,16 @@ def render_login_page():
     .login-brand {
         text-align: center;
         margin-bottom: 1.25rem;
+        min-height: 80px; /* Reserve space for logo + tagline to prevent layout shift */
     }
 
     .login-brand-logo-img {
         height: 48px;
         width: auto;
         margin-bottom: 0.5rem;
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
     }
 
     .login-brand-tagline {
@@ -1833,7 +1853,7 @@ st.set_page_config(
     page_title="Asset Management System",
     page_icon="🟠",
     layout="wide",
-    initial_sidebar_state="collapsed"  # Start collapsed to prevent flash
+    initial_sidebar_state="expanded"  # Sidebar visible after login; login page CSS hides it
 )
 
 # ============================================
@@ -1847,6 +1867,15 @@ st.markdown("""
 [data-testid="stSidebar"] { display: none !important; }
 [data-testid="stSidebarNav"] { display: none !important; }
 section[data-testid="stSidebar"] { display: none !important; }
+
+/* Anti-flicker: Fade in content to prevent layout shift during rendering */
+.main .block-container {
+    animation: appFadeIn 0.25s ease-in;
+}
+@keyframes appFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1858,15 +1887,42 @@ section[data-testid="stSidebar"] { display: none !important; }
 # 1. Initialize auth session state defaults
 init_auth_session()
 
-# 2. Check authentication state
-# If NOT authenticated, render login page and STOP immediately
+# 2. Try to restore session from URL query params (survives hard refresh)
+#    On hard refresh, Streamlit session state is lost but URL params persist.
+#    If a valid session token is in the URL, restore the session automatically.
+if not st.session_state.authenticated:
+    _sid = st.query_params.get("sid")
+    if _sid and AUTH_AVAILABLE:
+        try:
+            _parts = _sid.split(":", 1)
+            if len(_parts) == 2:
+                _restore_uid = int(_parts[0])
+                _restore_token = _parts[1]
+                _is_valid, _user_data = validate_session(_restore_uid, _restore_token)
+                if _is_valid and _user_data:
+                    # Restore session from persisted token
+                    _user_data['session_token'] = _restore_token
+                    login_user(_user_data)
+                else:
+                    # Token is invalid/expired, clear it from URL
+                    if "sid" in st.query_params:
+                        del st.query_params["sid"]
+        except (ValueError, Exception):
+            # Malformed sid param, clear it
+            try:
+                if "sid" in st.query_params:
+                    del st.query_params["sid"]
+            except Exception:
+                pass
+
+# 3. If STILL not authenticated, render login page and STOP immediately
 # This prevents ANY main app UI from rendering
 if not st.session_state.authenticated:
     render_login_page()
     st.stop()
 
-# 3. User IS authenticated from this point forward
-# Navigation is handled via sidebar buttons and session state (no query params)
+# 4. User IS authenticated from this point forward
+# Navigation is handled via sidebar buttons and session state
 # ============================================
 
 # Professional Dashboard Theme CSS - Matching Reference Design
