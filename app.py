@@ -470,7 +470,11 @@ def render_login_page():
         min-height: 100vh;
     }
 
-    /* Ensure main content is full width on login */
+    /* Ensure main content is full width on login (override sidebar margin) */
+    section.main {
+        width: 100% !important;
+        margin-left: 0 !important;
+    }
     .main .block-container {
         max-width: 100% !important;
         padding-left: 1rem !important;
