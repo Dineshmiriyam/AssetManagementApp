@@ -372,12 +372,11 @@ def validate_current_session():
         return True
 
 
-def login_user(user_data: dict, from_restore: bool = False):
+def login_user(user_data: dict):
     """
     Set session state after successful login.
     Stores session token for server-side validation.
-    Persists session token in URL query params for hard refresh recovery.
-    When from_restore=True, skips setting query params (sid already in URL).
+    Note: Caller is responsible for setting st.query_params["sid"] separately.
     """
     st.session_state.authenticated = True
     st.session_state.user_id = user_data['id']
@@ -391,16 +390,6 @@ def login_user(user_data: dict, from_restore: bool = False):
     st.session_state.last_session_validation = datetime.now()  # Set initial validation time
     st.session_state.login_error = None
     st.session_state.login_processing = False
-
-    # Persist session token in URL for hard refresh recovery
-    # Skip when restoring from URL (sid already present, avoids unnecessary rerun)
-    if not from_restore:
-        try:
-            token = user_data.get('session_token')
-            if token:
-                st.query_params["sid"] = f"{user_data['id']}:{token}"
-        except Exception:
-            pass  # Don't fail login if query params can't be set
 
 
 def logout_user(reason: str = None):
@@ -805,11 +794,19 @@ def render_login_page():
                         success, user_data, message = authenticate_user(username_clean, password)
                         if success and user_data:
                             login_user(user_data)
-                            safe_rerun()
+                            # Persist session token in URL for hard refresh recovery
+                            token = user_data.get('session_token')
+                            if token:
+                                st.query_params["sid"] = f"{user_data['id']}:{token}"
+                                logger.info("Session token set in URL query params")
+                            else:
+                                logger.warning("No session_token in user_data after login")
+                                safe_rerun()
                         else:
                             st.session_state.login_processing = False
                             st.error(message)
-                    except Exception:
+                    except Exception as e:
+                        logger.error(f"Login error: {e}")
                         st.session_state.login_processing = False
                         st.error("An error occurred. Please try again.")
 
@@ -1912,7 +1909,7 @@ if not st.session_state.authenticated:
                 if _is_valid and _user_data:
                     # Restore session from persisted token
                     _user_data['session_token'] = _restore_token
-                    login_user(_user_data, from_restore=True)
+                    login_user(_user_data)
                 elif _err_type:
                     # DB/connection error — keep sid in URL for retry on next load
                     pass
