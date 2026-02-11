@@ -1857,7 +1857,7 @@ st.set_page_config(
     page_title="Asset Management System",
     page_icon="🟠",
     layout="wide",
-    initial_sidebar_state="collapsed"  # Prevents compressed layout flash; dashboard CSS expands it
+    initial_sidebar_state="expanded"  # Sidebar visible after login; opacity:0 hides flash
 )
 
 # ============================================
@@ -1936,7 +1936,7 @@ if not st.session_state.authenticated:
 st.markdown("""
 <style>
     /* ==========================================================================
-       AUTHENTICATED USER: Reveal app and expand sidebar
+       AUTHENTICATED USER: Reveal app and show sidebar
        ========================================================================== */
     .stApp { opacity: 1 !important; }
 
@@ -1945,12 +1945,6 @@ st.markdown("""
     section[data-testid="stSidebar"] {
         display: flex !important;
         visibility: visible !important;
-        transform: none !important;
-    }
-
-    /* Hide collapsed sidebar toggle (sidebar is always visible for auth users) */
-    [data-testid="collapsedControl"] {
-        display: none !important;
     }
 
     /* ==========================================================================
