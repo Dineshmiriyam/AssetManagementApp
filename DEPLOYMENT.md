@@ -8,6 +8,8 @@
 
 | Date | Commit | Description |
 |------|--------|-------------|
+| Feb 11, 2026 | `6e65c40` | Fix compressed login page after logout on production |
+| Feb 11, 2026 | `629de8d` | Fix session token not persisting in production URL |
 | Feb 11, 2026 | `0b91f13` | Fix compressed login page after logout |
 | Feb 11, 2026 | `703e184` | Fix sidebar missing — simplify anti-flicker CSS |
 | Feb 11, 2026 | `baaba6d` | Revert sidebar to expanded (fix missing menu) |
@@ -120,6 +122,9 @@ If you need to add/change environment variables:
 | Sidebar hidden after login (prod) | Changed `initial_sidebar_state` to `"expanded"` |
 | Sidebar missing after CSS changes | Anti-flicker CSS must only use `display: none` on sidebar — no `width: 0` or `min-width: 0` |
 | Login page compressed after logout | Add `section.main { width: 100%; margin-left: 0 }` to login CSS |
+| Session token not in URL (production) | Move `st.query_params` out of silent `try/except` — call directly from handler |
+| Login page compressed after logout (prod) | Move `st.query_params.clear()` out of `logout_user()` — call directly from sign out handler |
+| `KeyError: None` on logout | `st.query_params.clear()` doesn't stop execution — add `safe_rerun()` after it |
 | Duplicate items in dropdowns | Use `.dropna().unique().tolist()` not just `.tolist()` |
 
 ---
@@ -156,6 +161,36 @@ If you need to add/change environment variables:
 ```css
 section.main { width: 100% !important; margin-left: 0 !important; }
 ```
+
+### Session Token Not Persisting on Production (NEW)
+**Problem:** After login on production, `?sid=` token was NOT appearing in the URL, even though it worked on localhost. Session persistence was completely broken on production.
+
+**Root Cause:** `st.query_params["sid"] = value` inside `login_user()` was wrapped in `try/except Exception: pass`, which silently caught a production-specific error. The error was invisible because of the silent catch.
+
+**Solution:** Same pattern applied to both `login_user()` and `logout_user()`:
+1. Removed `st.query_params` operations from inside the functions
+2. Moved them to the calling handlers (login form handler, sign out button handler)
+3. Called directly without silent `try/except Exception: pass`
+4. Added `logger.info/warning/error` for visibility
+
+### Compressed Login Page on Production After Logout (NEW)
+**Problem:** Login page appeared compressed ONLY on production after logout, not on localhost.
+
+**Root Cause:** Same silent `try/except Exception: pass` pattern in `logout_user()`. On production, `del st.query_params["sid"]` failed silently → `?sid=` stayed in URL → session restore code ran with failed `st.query_params` operations → Streamlit rendering left in inconsistent state.
+
+**Solution:**
+1. Removed `st.query_params.clear()` from `logout_user()` (caller handles it)
+2. Sign out button calls `st.query_params.clear()` directly then `safe_rerun()`
+3. Session restore uses `_clear_sid` flag — calls `st.query_params.clear()` OUTSIDE `try/except`
+4. Broadened login CSS to override `[data-testid="stMain"]` and `.stMainBlockContainer`
+
+### Lesson Learned: `st.query_params` on Production
+**NEVER** wrap `st.query_params` operations in `try/except Exception: pass`. On Railway production, these operations can fail silently due to reverse proxy or Streamlit version behavior. Always call them directly from the handler and log errors.
+
+**Pattern:** Same as Streamlit widget callbacks — `login_user()`/`logout_user()` handle state only. Callers handle `st.query_params` directly.
+
+### Lesson Learned: `st.query_params` Does NOT Stop Execution
+`st.query_params.clear()` and `st.query_params["key"] = value` queue a rerun but do NOT stop script execution. If session state was already cleared (e.g., `logout_user()` set `user_role = None`), the remaining script will crash (`KeyError: None`). Always call `safe_rerun()` after if the script must not continue.
 
 ### Lesson Learned: CSS Cascade Conflicts
 Anti-flicker CSS must be MINIMAL — only set properties that the dashboard/login CSS explicitly overrides. Setting `width: 0` and `min-width: 0` on the sidebar caused them to persist because dashboard CSS only overrode `display` and `visibility`.
