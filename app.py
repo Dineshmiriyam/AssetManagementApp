@@ -395,6 +395,7 @@ def login_user(user_data: dict):
 def logout_user(reason: str = None):
     """
     Clear session state on logout and invalidate server-side session.
+    Note: Caller is responsible for clearing st.query_params separately.
     """
     # Invalidate server-side session
     if AUTH_AVAILABLE and st.session_state.user_id:
@@ -402,13 +403,6 @@ def logout_user(reason: str = None):
             invalidate_session(st.session_state.user_id)
         except Exception:
             pass  # Don't fail logout if invalidation fails
-
-    # Clear persisted session from URL
-    try:
-        if "sid" in st.query_params:
-            del st.query_params["sid"]
-    except Exception:
-        pass
 
     # Clear all session state
     st.session_state.authenticated = False
@@ -461,16 +455,21 @@ def render_login_page():
         min-height: 100vh;
     }
 
-    /* Ensure main content is full width on login (override sidebar margin) */
-    [data-testid="stAppViewContainer"] {
+    /* Ensure main content is full width on login (override ALL sidebar margins) */
+    [data-testid="stAppViewContainer"],
+    [data-testid="stMain"] {
         margin-left: 0 !important;
         padding-left: 0 !important;
+        width: 100% !important;
+        min-width: 100% !important;
     }
     section.main {
         width: 100% !important;
+        min-width: 100% !important;
         margin-left: 0 !important;
     }
-    .main .block-container {
+    .main .block-container,
+    .stMainBlockContainer {
         max-width: 100% !important;
         padding-left: 1rem !important;
         padding-right: 1rem !important;
@@ -1899,6 +1898,7 @@ init_auth_session()
 #    If a valid session token is in the URL, restore the session automatically.
 if not st.session_state.authenticated:
     _sid = st.query_params.get("sid")
+    _clear_sid = False  # Flag to clear sid OUTSIDE try/except
     if _sid and AUTH_AVAILABLE:
         try:
             _parts = _sid.split(":", 1)
@@ -1914,19 +1914,19 @@ if not st.session_state.authenticated:
                     # DB/connection error — keep sid in URL for retry on next load
                     pass
                 else:
-                    # Token is explicitly invalid/expired, clear it from URL
-                    if "sid" in st.query_params:
-                        del st.query_params["sid"]
+                    # Token is explicitly invalid/expired — flag for clearing
+                    _clear_sid = True
         except ValueError:
-            # Malformed sid param (bad format), clear it
-            try:
-                if "sid" in st.query_params:
-                    del st.query_params["sid"]
-            except Exception:
-                pass
+            # Malformed sid param (bad format) — flag for clearing
+            _clear_sid = True
         except Exception:
             # Network/DB error — keep sid in URL so next page load can retry
             pass
+
+    # Clear invalid sid OUTSIDE try/except so it's not silently caught
+    if _clear_sid:
+        st.query_params.clear()
+        logger.info("Cleared invalid/expired sid from URL")
 
 # 3. If STILL not authenticated, render login page and STOP immediately
 # This prevents ANY main app UI from rendering
@@ -6016,6 +6016,9 @@ if st.sidebar.button("Sign Out", key="logout_btn", use_container_width=True):
         success=True
     )
     logout_user()
+    # Clear session token from URL
+    st.query_params.clear()
+    logger.info("Query params cleared on logout")
     safe_rerun()
 
 # Update page if navigation button was clicked
