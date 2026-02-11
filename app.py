@@ -352,8 +352,10 @@ def validate_current_session():
 
     # Validate session token against server
     try:
-        is_valid, user_data = validate_session(user_id, session_token)
+        is_valid, user_data, _err = validate_session(user_id, session_token)
         if not is_valid:
+            if _err:
+                return True  # Transient DB error — don't logout, retry later
             logout_user(reason="session_invalidated")
             return False
 
@@ -471,6 +473,10 @@ def render_login_page():
     }
 
     /* Ensure main content is full width on login (override sidebar margin) */
+    [data-testid="stAppViewContainer"] {
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+    }
     section.main {
         width: 100% !important;
         margin-left: 0 !important;
@@ -1902,11 +1908,14 @@ if not st.session_state.authenticated:
             if len(_parts) == 2:
                 _restore_uid = int(_parts[0])
                 _restore_token = _parts[1]
-                _is_valid, _user_data = validate_session(_restore_uid, _restore_token)
+                _is_valid, _user_data, _err_type = validate_session(_restore_uid, _restore_token)
                 if _is_valid and _user_data:
                     # Restore session from persisted token
                     _user_data['session_token'] = _restore_token
                     login_user(_user_data, from_restore=True)
+                elif _err_type:
+                    # DB/connection error — keep sid in URL for retry on next load
+                    pass
                 else:
                     # Token is explicitly invalid/expired, clear it from URL
                     if "sid" in st.query_params:

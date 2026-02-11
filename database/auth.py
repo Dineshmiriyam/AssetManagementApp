@@ -402,17 +402,19 @@ def authenticate_user(username: str, password: str, ip_address: str = None) -> T
         return False, None, "Authentication service error. Please try again."
 
 
-def validate_session(user_id: int, session_token: str) -> Tuple[bool, Optional[Dict]]:
+def validate_session(user_id: int, session_token: str) -> Tuple[bool, Optional[Dict], Optional[str]]:
     """
     Validate an existing session token.
-    Returns: (is_valid, user_data)
+    Returns: (is_valid, user_data, error_type)
+    - error_type is None on success or explicit auth failure
+    - error_type is "connection_error" or "db_error" on transient failures
     """
     if not user_id or not session_token:
-        return False, None
+        return False, None, None
 
     conn = get_connection()
     if not conn:
-        return False, None
+        return False, None, "connection_error"
 
     try:
         cursor = conn.cursor(dictionary=True)
@@ -430,17 +432,17 @@ def validate_session(user_id: int, session_token: str) -> Tuple[bool, Optional[D
         conn.close()
 
         if not user:
-            return False, None
+            return False, None, None
 
         # Verify session token
         stored_hash = user.get('session_token_hash')
         if not stored_hash:
-            return False, None
+            return False, None, None
 
         # Constant-time comparison of token hashes
         provided_hash = hash_session_token(session_token)
         if not secrets.compare_digest(stored_hash, provided_hash):
-            return False, None
+            return False, None, None
 
         # Remove sensitive data
         if 'session_token_hash' in user:
@@ -448,11 +450,11 @@ def validate_session(user_id: int, session_token: str) -> Tuple[bool, Optional[D
         if 'session_created_at' in user:
             del user['session_created_at']
 
-        return True, user
+        return True, user, None
 
     except Error as e:
         security_logger.error(f"Session validation error: {e}")
-        return False, None
+        return False, None, "db_error"
 
 
 def invalidate_session(user_id: int) -> bool:
