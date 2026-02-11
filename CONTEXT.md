@@ -1,7 +1,7 @@
 # NXTBY Asset Management System - Project Context
 
-> **Last Updated:** February 10, 2026
-> **Version:** 1.2
+> **Last Updated:** February 11, 2026
+> **Version:** 1.3
 > **Status:** Production (Internal Use)
 
 ---
@@ -411,12 +411,20 @@ Local Development
 3. **Session Validation:** Cached for 5 minutes to prevent login flicker
 4. **Anchor Tags Avoided:** All navigation uses `st.button()` to preserve session state
 5. **Session Persistence:** Token stored in `st.query_params["sid"]` to survive hard refresh
-6. **Anti-Flicker:** CSS `fadeIn` animation prevents layout shift on login page
+6. **Anti-Flicker:** `.stApp { opacity: 0 }` hides entire app until auth resolves; login/dashboard CSS sets `opacity: 1`
+7. **Login Page Full-Width:** `section.main { width: 100%; margin-left: 0 }` overrides Streamlit's sidebar margin on login page
 
 ### Technical Debt
 1. `app.py` is large (~10,000 lines) - could be split into modules
 2. Some CSS is duplicated
 3. No automated tests
+
+### Resolved Issues (Feb 11, 2026)
+1. ~~Login page flash on refresh~~ → Fixed with `.stApp { opacity: 0 }` anti-flicker (replaces fadeIn animation)
+2. ~~Sidebar missing after login~~ → Anti-flicker CSS had `width: 0` on sidebar never overridden; simplified to `display: none` only
+3. ~~Login page compressed after logout~~ → Added `section.main { margin-left: 0 }` to override Streamlit's inline sidebar margin
+4. ~~Session lost on transient network errors~~ → Split exception handling: only clear sid on explicit auth failure, keep sid on network errors
+5. ~~Unnecessary rerun during session restore~~ → Added `from_restore` flag to `login_user()` to skip re-setting query_params
 
 ### Resolved Issues (Feb 10, 2026)
 1. ~~Login lost on hard refresh (production)~~ → Fixed with `st.query_params` session token persistence
@@ -453,8 +461,31 @@ Local Development
 | Feb 10, 2026 | Data quality fixes (duplicate clients, asset locations) |
 | Feb 10, 2026 | Retired Assets KPI cards (Sold, Disposed) |
 | Feb 10, 2026 | Localhost synced from production database |
+| Feb 11, 2026 | Anti-flicker CSS overhaul (opacity:0 approach) |
+| Feb 11, 2026 | Session restore optimization (from_restore flag) |
+| Feb 11, 2026 | Login page full-width fix after logout |
 
-### Recent Changes (February 10, 2026)
+### Recent Changes (February 11, 2026)
+
+#### Anti-Flicker CSS Overhaul
+- **Problem:** Login page flashed briefly on refresh; page appeared compressed
+- **Root Cause:** Old fadeIn animation was insufficient; sidebar CSS overrides conflicted
+- **Solution:** Hide entire `.stApp` with `opacity: 0` until auth resolves. Login CSS and dashboard CSS each set `opacity: 1` to reveal the correct page.
+- Anti-flicker sidebar CSS simplified to `display: none` only (no width/min-width overrides that could conflict with dashboard CSS)
+
+#### Session Restore Optimization
+- **Problem:** `login_user()` re-set `st.query_params["sid"]` during session restore, potentially triggering unnecessary Streamlit rerun
+- **Solution:** Added `from_restore=False` parameter to `login_user()`. Session restoration passes `from_restore=True` to skip the query_params assignment.
+
+#### Exception Handling Improvement
+- **Problem:** Catch-all `except (ValueError, Exception)` deleted sid from URL on any error, including transient network/DB failures
+- **Solution:** Split into `except ValueError` (malformed sid → clear) and `except Exception` (network error → keep sid for retry on next load)
+
+#### Login Page Compressed After Logout
+- **Problem:** After logout, login page appeared compressed because Streamlit's inline margin for the expanded sidebar was still applied to `.main`
+- **Solution:** Added `section.main { width: 100% !important; margin-left: 0 !important; }` to login page CSS
+
+### Previous Changes (February 10, 2026)
 
 #### Session Persistence on Hard Refresh
 - **Problem:** Production hard refresh lost login session

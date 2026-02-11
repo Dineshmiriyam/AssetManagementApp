@@ -1,6 +1,6 @@
 # Deployment Guide
 
-> **Last Updated:** February 10, 2026
+> **Last Updated:** February 11, 2026
 
 ---
 
@@ -8,6 +8,10 @@
 
 | Date | Commit | Description |
 |------|--------|-------------|
+| Feb 11, 2026 | `0b91f13` | Fix compressed login page after logout |
+| Feb 11, 2026 | `703e184` | Fix sidebar missing — simplify anti-flicker CSS |
+| Feb 11, 2026 | `baaba6d` | Revert sidebar to expanded (fix missing menu) |
+| Feb 11, 2026 | `0fdbe8b` | Anti-flicker overhaul, session restore optimization, exception handling |
 | Feb 10, 2026 | `4513d47` | Add Retired Assets (Sold/Disposed) KPI cards to Dashboard |
 | Feb 10, 2026 | `2201308` | Fix duplicate clients in Select Client dropdown |
 | Feb 10, 2026 | `18810ea` | Fix session persistence on hard refresh and sidebar visibility |
@@ -114,11 +118,51 @@ If you need to add/change environment variables:
 | Railway webhook missed deploy | Push empty trigger commit: `git commit --allow-empty -m "trigger deploy"` |
 | Login lost on hard refresh (prod) | Session token persisted in `st.query_params` - auto-restores on refresh |
 | Sidebar hidden after login (prod) | Changed `initial_sidebar_state` to `"expanded"` |
+| Sidebar missing after CSS changes | Anti-flicker CSS must only use `display: none` on sidebar — no `width: 0` or `min-width: 0` |
+| Login page compressed after logout | Add `section.main { width: 100%; margin-left: 0 }` to login CSS |
 | Duplicate items in dropdowns | Use `.dropna().unique().tolist()` not just `.tolist()` |
 
 ---
 
-## Today's Changes (February 10, 2026)
+## Today's Changes (February 11, 2026)
+
+### Anti-Flicker CSS Overhaul
+**Problem:** Login page flashed on refresh; page appeared compressed during auth check
+
+**Root Cause:** Old `fadeIn` animation was insufficient. Sidebar still visible before CSS loaded.
+
+**Solution:** New approach using `.stApp { opacity: 0 !important }` in anti-flicker CSS:
+- Hides entire app until auth decision is made
+- Login page CSS sets `opacity: 1` to reveal login form
+- Dashboard CSS sets `opacity: 1` to reveal dashboard + sidebar
+- Anti-flicker sidebar CSS uses only `display: none` (no width/min-width overrides)
+
+### Session Restore Optimization
+**Problem:** `login_user()` re-set `st.query_params["sid"]` during restore, causing potential unnecessary rerun
+
+**Solution:** Added `from_restore=False` parameter. Session restoration passes `True` to skip query_params (already in URL).
+
+### Exception Handling Improvement
+**Problem:** All exceptions during session validation deleted sid from URL, including network timeouts
+
+**Solution:** Split handlers:
+- `ValueError` (malformed sid) → clear sid from URL
+- General `Exception` (network/DB error) → keep sid for retry on next load
+
+### Login Page Compressed After Logout
+**Problem:** Login form appeared compressed after logout because Streamlit's inline sidebar margin was still active
+
+**Solution:** Added to login page CSS:
+```css
+section.main { width: 100% !important; margin-left: 0 !important; }
+```
+
+### Lesson Learned: CSS Cascade Conflicts
+Anti-flicker CSS must be MINIMAL — only set properties that the dashboard/login CSS explicitly overrides. Setting `width: 0` and `min-width: 0` on the sidebar caused them to persist because dashboard CSS only overrode `display` and `visibility`.
+
+---
+
+## Previous Changes (February 10, 2026)
 
 ### Session Persistence on Hard Refresh
 **Problem:** Hard refresh on production showed login page (session state lost)
