@@ -1870,15 +1870,11 @@ st.markdown("""
 /* Hide entire app until auth decision (login CSS or dashboard CSS reveals it) */
 .stApp { opacity: 0 !important; }
 
-/* Force sidebar hidden and zero-width to prevent any compressed layout */
+/* Hide sidebar until auth decision */
 [data-testid="stSidebar"],
 [data-testid="stSidebarNav"],
-section[data-testid="stSidebar"],
-[data-testid="collapsedControl"] {
+section[data-testid="stSidebar"] {
     display: none !important;
-    visibility: hidden !important;
-    width: 0 !important;
-    min-width: 0 !important;
 }
 </style>
 """, unsafe_allow_html=True)
