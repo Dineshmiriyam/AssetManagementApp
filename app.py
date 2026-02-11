@@ -370,11 +370,12 @@ def validate_current_session():
         return True
 
 
-def login_user(user_data: dict):
+def login_user(user_data: dict, from_restore: bool = False):
     """
     Set session state after successful login.
     Stores session token for server-side validation.
     Persists session token in URL query params for hard refresh recovery.
+    When from_restore=True, skips setting query params (sid already in URL).
     """
     st.session_state.authenticated = True
     st.session_state.user_id = user_data['id']
@@ -390,12 +391,14 @@ def login_user(user_data: dict):
     st.session_state.login_processing = False
 
     # Persist session token in URL for hard refresh recovery
-    try:
-        token = user_data.get('session_token')
-        if token:
-            st.query_params["sid"] = f"{user_data['id']}:{token}"
-    except Exception:
-        pass  # Don't fail login if query params can't be set
+    # Skip when restoring from URL (sid already present, avoids unnecessary rerun)
+    if not from_restore:
+        try:
+            token = user_data.get('session_token')
+            if token:
+                st.query_params["sid"] = f"{user_data['id']}:{token}"
+        except Exception:
+            pass  # Don't fail login if query params can't be set
 
 
 def logout_user(reason: str = None):
@@ -460,8 +463,9 @@ def render_login_page():
         visibility: hidden !important;
     }
 
-    /* Page background - clean light gray */
+    /* Reveal app on login page */
     .stApp {
+        opacity: 1 !important;
         background: #f5f5f5 !important;
         min-height: 100vh;
     }
@@ -1853,7 +1857,7 @@ st.set_page_config(
     page_title="Asset Management System",
     page_icon="🟠",
     layout="wide",
-    initial_sidebar_state="expanded"  # Sidebar visible after login; login page CSS hides it
+    initial_sidebar_state="collapsed"  # Prevents compressed layout flash; dashboard CSS expands it
 )
 
 # ============================================
@@ -1863,18 +1867,18 @@ st.set_page_config(
 # It will be overridden by login page CSS or main app CSS
 st.markdown("""
 <style>
-/* Hide everything until auth decision is made */
-[data-testid="stSidebar"] { display: none !important; }
-[data-testid="stSidebarNav"] { display: none !important; }
-section[data-testid="stSidebar"] { display: none !important; }
+/* Hide entire app until auth decision (login CSS or dashboard CSS reveals it) */
+.stApp { opacity: 0 !important; }
 
-/* Anti-flicker: Fade in content to prevent layout shift during rendering */
-.main .block-container {
-    animation: appFadeIn 0.25s ease-in;
-}
-@keyframes appFadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+/* Force sidebar hidden and zero-width to prevent any compressed layout */
+[data-testid="stSidebar"],
+[data-testid="stSidebarNav"],
+section[data-testid="stSidebar"],
+[data-testid="collapsedControl"] {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    min-width: 0 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -1902,18 +1906,21 @@ if not st.session_state.authenticated:
                 if _is_valid and _user_data:
                     # Restore session from persisted token
                     _user_data['session_token'] = _restore_token
-                    login_user(_user_data)
+                    login_user(_user_data, from_restore=True)
                 else:
-                    # Token is invalid/expired, clear it from URL
+                    # Token is explicitly invalid/expired, clear it from URL
                     if "sid" in st.query_params:
                         del st.query_params["sid"]
-        except (ValueError, Exception):
-            # Malformed sid param, clear it
+        except ValueError:
+            # Malformed sid param (bad format), clear it
             try:
                 if "sid" in st.query_params:
                     del st.query_params["sid"]
             except Exception:
                 pass
+        except Exception:
+            # Network/DB error — keep sid in URL so next page load can retry
+            pass
 
 # 3. If STILL not authenticated, render login page and STOP immediately
 # This prevents ANY main app UI from rendering
@@ -1929,13 +1936,21 @@ if not st.session_state.authenticated:
 st.markdown("""
 <style>
     /* ==========================================================================
-       AUTHENTICATED USER: Show sidebar (override initial hidden state)
+       AUTHENTICATED USER: Reveal app and expand sidebar
        ========================================================================== */
+    .stApp { opacity: 1 !important; }
+
     [data-testid="stSidebar"],
     [data-testid="stSidebarNav"],
     section[data-testid="stSidebar"] {
         display: flex !important;
         visibility: visible !important;
+        transform: none !important;
+    }
+
+    /* Hide collapsed sidebar toggle (sidebar is always visible for auth users) */
+    [data-testid="collapsedControl"] {
+        display: none !important;
     }
 
     /* ==========================================================================
