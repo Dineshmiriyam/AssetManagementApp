@@ -267,7 +267,7 @@ def render_login_page():
             button_text = "Log In" if not st.session_state.login_processing else "Logging in..."
             submit = st.form_submit_button(
                 button_text,
-                use_container_width=True,
+                width="stretch",
                 type="primary",
                 disabled=st.session_state.login_processing
             )

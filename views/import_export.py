@@ -102,7 +102,7 @@ def render(ctx: AppContext) -> None:
                         data=excel_buffer.getvalue(),
                         file_name=f"assets_export_{timestamp}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True
+                        width="stretch"
                     )
                 except Exception as e:
                     st.error(f"Failed to generate Excel: {str(e)}")
@@ -116,7 +116,7 @@ def render(ctx: AppContext) -> None:
                     data=csv_data,
                     file_name=f"assets_export_{timestamp}.csv",
                     mime="text/csv",
-                    use_container_width=True
+                    width="stretch"
                 )
 
             # Preview section
@@ -129,7 +129,7 @@ def render(ctx: AppContext) -> None:
 
                 # Paginated preview with page navigation
                 paginated_export = paginate_dataframe(export_preview_source, "export_preview_table", show_controls=True)
-                st.dataframe(paginated_export, use_container_width=True, height=400)
+                st.dataframe(paginated_export, width="stretch", height=400)
                 render_page_navigation("export_preview_table")
         else:
             st.warning("No assets found in the database to export.")
@@ -163,7 +163,7 @@ def render(ctx: AppContext) -> None:
                     data=template_buffer.getvalue(),
                     file_name="asset_import_template.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True
+                    width="stretch"
                 )
             except Exception as e:
                 st.error(f"Failed to generate template: {str(e)}")
@@ -221,14 +221,14 @@ def render(ctx: AppContext) -> None:
                     preview_cols = ['Serial Number', 'Asset Type', 'Brand', 'Model', 'Current Status']
                     available_preview = [c for c in preview_cols if c in import_df.columns]
                     if available_preview:
-                        st.dataframe(import_df[available_preview].head(10), use_container_width=True)
+                        st.dataframe(import_df[available_preview].head(10), width="stretch")
                     else:
-                        st.dataframe(import_df.head(10), use_container_width=True)
+                        st.dataframe(import_df.head(10), width="stretch")
 
                     st.caption(f"Total rows: {len(import_df)}")
 
                     # Validate button
-                    if st.button("🔍 Validate Data", use_container_width=True, type="primary"):
+                    if st.button("🔍 Validate Data", width="stretch", type="primary"):
                         with st.spinner("Validating data..."):
                             is_valid, errors, warnings, valid_df = validate_import_data(import_df)
                             st.session_state.import_errors = errors
@@ -289,7 +289,7 @@ def render(ctx: AppContext) -> None:
                         st.caption("Click the button below to import valid records into the database.")
 
                         if valid_count > 0:
-                            if st.button(f"📥 Import {valid_count} Assets", use_container_width=True, type="primary"):
+                            if st.button(f"📥 Import {valid_count} Assets", width="stretch", type="primary"):
                                 with st.spinner(f"Importing {valid_count} assets..."):
                                     result = import_assets_from_dataframe(valid_df)
 
@@ -433,7 +433,7 @@ def render(ctx: AppContext) -> None:
                         data=qr_png.getvalue(),
                         file_name=f"qr_{serial}.png",
                         mime="image/png",
-                        use_container_width=True
+                        width="stretch"
                     )
 
                 with dl_col2:
@@ -443,7 +443,7 @@ def render(ctx: AppContext) -> None:
                         data=qr_label.getvalue(),
                         file_name=f"qr_label_{serial}.png",
                         mime="image/png",
-                        use_container_width=True
+                        width="stretch"
                     )
 
             # ===== BULK QR GENERATION =====
@@ -510,7 +510,7 @@ def render(ctx: AppContext) -> None:
                 selected_serials = [opt.split(" - ")[0] for opt in selected_bulk]
                 selected_assets_data = filtered_qr_df[filtered_qr_df['Serial Number'].isin(selected_serials)].to_dict('records')
 
-                if st.button(f"📄 Generate PDF ({len(selected_bulk)} labels)", type="primary", use_container_width=True):
+                if st.button(f"📄 Generate PDF ({len(selected_bulk)} labels)", type="primary", width="stretch"):
                     with st.spinner("Generating PDF..."):
                         pdf_buffer = generate_bulk_qr_pdf(selected_assets_data, labels_per_row=labels_per_row)
                         st.session_state.qr_pdf_buffer = pdf_buffer
@@ -525,7 +525,7 @@ def render(ctx: AppContext) -> None:
                         data=st.session_state.qr_pdf_buffer.getvalue(),
                         file_name=f"qr_labels_{timestamp}.pdf",
                         mime="application/pdf",
-                        use_container_width=True
+                        width="stretch"
                     )
             else:
                 st.info("Select assets above to generate PDF labels.")

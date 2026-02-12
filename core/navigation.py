@@ -129,7 +129,7 @@ def render_sidebar(db_connected: bool) -> str:
     """, unsafe_allow_html=True)
 
     # Logout button (compact)
-    if st.sidebar.button("Sign Out", key="logout_btn", use_container_width=True):
+    if st.sidebar.button("Sign Out", key="logout_btn", width="stretch"):
         log_activity_event(
             action_type="USER_LOGOUT",
             category="authentication",

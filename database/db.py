@@ -16,6 +16,18 @@ except ImportError:
     from config import DB_CONFIG
 
 
+def _query_to_df(query, conn, params=None):
+    """Execute query and return DataFrame using cursor (avoids pandas SQLAlchemy warning)."""
+    cursor = conn.cursor(dictionary=True)
+    if params:
+        cursor.execute(query, params)
+    else:
+        cursor.execute(query)
+    rows = cursor.fetchall()
+    cursor.close()
+    return pd.DataFrame(rows) if rows else pd.DataFrame()
+
+
 class DatabaseConnection:
     """MySQL Database Connection Manager with Connection Pooling"""
 
@@ -98,7 +110,7 @@ def get_all_assets() -> pd.DataFrame:
         FROM assets
         ORDER BY updated_at DESC
         """
-        df = pd.read_sql(query, conn)
+        df = _query_to_df(query, conn)
         return df
     except Error as e:
         st.error(f"Error fetching assets: {e}")
@@ -379,7 +391,7 @@ def get_all_clients() -> pd.DataFrame:
         WHERE status = 'ACTIVE'
         ORDER BY client_name
         """
-        df = pd.read_sql(query, conn)
+        df = _query_to_df(query, conn)
         return df
     except Error as e:
         st.error(f"Error fetching clients: {e}")
@@ -452,7 +464,7 @@ def get_all_assignments() -> pd.DataFrame:
         LEFT JOIN clients c ON asn.client_id = c.id
         ORDER BY asn.created_at DESC
         """
-        df = pd.read_sql(query, conn)
+        df = _query_to_df(query, conn)
         return df
     except Error as e:
         st.error(f"Error fetching assignments: {e}")
@@ -549,7 +561,7 @@ def get_all_issues() -> pd.DataFrame:
         LEFT JOIN assets a ON i.asset_id = a.id
         ORDER BY i.created_at DESC
         """
-        df = pd.read_sql(query, conn)
+        df = _query_to_df(query, conn)
         return df
     except Error as e:
         st.error(f"Error fetching issues: {e}")
@@ -635,7 +647,7 @@ def get_all_repairs() -> pd.DataFrame:
         LEFT JOIN assets a ON r.asset_id = a.id
         ORDER BY r.created_at DESC
         """
-        df = pd.read_sql(query, conn)
+        df = _query_to_df(query, conn)
         return df
     except Error as e:
         st.error(f"Error fetching repairs: {e}")
@@ -750,7 +762,7 @@ def get_state_change_log(limit: int = 100) -> pd.DataFrame:
         ORDER BY created_at DESC
         LIMIT {limit}
         """
-        df = pd.read_sql(query, conn)
+        df = _query_to_df(query, conn)
         return df
     except Error as e:
         st.error(f"Error fetching logs: {e}")
@@ -990,7 +1002,7 @@ def get_activity_log(
         """
         params.append(limit)
 
-        df = pd.read_sql(query, conn, params=params)
+        df = _query_to_df(query, conn, params=params)
         return df
     except Error as e:
         st.error(f"Error fetching activity log: {e}")
@@ -1168,7 +1180,7 @@ def get_all_billing_periods(limit: int = 24) -> pd.DataFrame:
         ORDER BY period_year DESC, period_month DESC
         LIMIT %s
         """
-        df = pd.read_sql(query, conn, params=(limit,))
+        df = _query_to_df(query, conn, params=(limit,))
         return df
     except Error:
         return pd.DataFrame()

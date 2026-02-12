@@ -138,9 +138,9 @@ def render(ctx: AppContext) -> None:
             # Search and Clear buttons side by side inside form
             btn_col1, btn_col2 = st.columns([3, 1])
             with btn_col1:
-                search_submitted = st.form_submit_button("🔍 Search", use_container_width=True, type="primary")
+                search_submitted = st.form_submit_button("🔍 Search", width="stretch", type="primary")
             with btn_col2:
-                clear_submitted = st.form_submit_button("Clear Filters", use_container_width=True)
+                clear_submitted = st.form_submit_button("Clear Filters", width="stretch")
 
         # Handle clear - set flag and rerun so flag check above clears state
         if clear_submitted:
@@ -263,7 +263,7 @@ def render(ctx: AppContext) -> None:
                 data=csv,
                 file_name=f"assets_export_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                 mime="text/csv",
-                use_container_width=True
+                width="stretch"
             )
 
         # ========== BULK OPERATIONS SECTION ==========
@@ -341,7 +341,7 @@ def render(ctx: AppContext) -> None:
                         current_statuses.add(asset_map[label]['status'])
                     st.caption(f"Current statuses: {', '.join(current_statuses)}")
 
-                    if st.button(f"🔄 Change Status for {selected_count} Assets", type="primary", use_container_width=True):
+                    if st.button(f"🔄 Change Status for {selected_count} Assets", type="primary", width="stretch"):
                         with st.spinner(f"Updating {selected_count} assets..."):
                             success_count = 0
                             fail_count = 0
@@ -419,7 +419,7 @@ def render(ctx: AppContext) -> None:
                         with ship_col2:
                             tracking_number = st.text_input("Tracking Number (optional)", key="bulk_tracking")
 
-                        if st.button(f"📦 Assign {assignable_count} Assets to {selected_client}", type="primary", use_container_width=True):
+                        if st.button(f"📦 Assign {assignable_count} Assets to {selected_client}", type="primary", width="stretch"):
                             with st.spinner(f"Assigning {assignable_count} assets..."):
                                 success_count = 0
                                 fail_count = 0
@@ -574,7 +574,7 @@ def render(ctx: AppContext) -> None:
 
                             with qa_action_col2:
                                 st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                                if st.button("🔄 Update Status", key="qa_update_status", type="primary", use_container_width=True):
+                                if st.button("🔄 Update Status", key="qa_update_status", type="primary", width="stretch"):
                                     asset_id = qa_row.get('_id', '')
                                     if asset_id:
                                         success, error_msg = update_asset_status(asset_id, qa_new_status)
@@ -594,7 +594,7 @@ def render(ctx: AppContext) -> None:
 
                             with qa_action_col3:
                                 st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                                if st.button("📋 View Full History", key="qa_view_history", use_container_width=True):
+                                if st.button("📋 View Full History", key="qa_view_history", width="stretch"):
                                     st.session_state.asset_search_serial = selected_qa_serial
                                     safe_rerun()
             else:
