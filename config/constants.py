@@ -192,3 +192,24 @@ CRITICAL_ACTIONS = {
     "ACCESS_DENIED": {"severity": "critical", "billing_impact": False},
     "ASSIGNMENT_CREATED": {"severity": "high", "billing_impact": True},
 }
+
+# ============================================
+# FORM / UI CONSTANTS
+# ============================================
+ASSET_TYPES = ["Laptop", "Phone", "Printer", "Other"]
+BRANDS = ["Lenovo", "Apple", "HP", "Dell", "Other"]
+STORAGE_TYPES = ["SSD", "HDD"]
+OS_OPTIONS = ["Windows 10 Pro", "Windows 11 Pro", "macOS"]
+
+ISSUE_CATEGORIES = [
+    "VPN Connection Issue", "Windows Reset Problem", "OS Installation Issue",
+    "Driver Issue", "Blue Screen / Restart", "Display Issue",
+    "HDMI Port Issue", "Keyboard Issue", "Physical Damage", "Battery Issue"
+]
+
+# Primary action per role - visually emphasized in sidebar
+ROLE_PRIMARY_ACTION = {
+    "operations": "Issues & Repairs",
+    "finance": "Billing",
+    "admin": "Dashboard"
+}
