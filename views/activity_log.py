@@ -317,39 +317,35 @@ def render(ctx: AppContext) -> None:
                     if is_critical or not success:
                         # Generate audit reference for display
                         audit_ref = f"AUD-{timestamp.strftime('%Y%m%d%H%M%S') if hasattr(timestamp, 'strftime') else 'UNKNOWN'}"
-                        audit_metadata_html = f'''
-    <div style="background:#f8fafc;border-top:1px solid #e2e8f0;margin-top:10px;padding:10px;border-radius:0 0 4px 4px;">
-    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-        <div style="font-size:0.75rem;color:#64748b;">
-            <span style="font-weight:600;">Audit Ref:</span> {audit_ref}
-        </div>
-        <div style="font-size:0.75rem;color:#64748b;">
-            <span style="font-weight:600;">Performed By:</span> {role}
-        </div>
-        <div style="font-size:0.75rem;color:#64748b;">
-            <span style="font-weight:600;">Affected Asset:</span> {asset or "N/A"}
-        </div>
-    </div>
-    </div>'''
+                        audit_metadata_html = (
+                            f'<div style="background:#f8fafc;border-top:1px solid #e2e8f0;margin-top:10px;padding:10px;border-radius:0 0 4px 4px;">'
+                            f'<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">'
+                            f'<div style="font-size:0.75rem;color:#64748b;"><span style="font-weight:600;">Audit Ref:</span> {audit_ref}</div>'
+                            f'<div style="font-size:0.75rem;color:#64748b;"><span style="font-weight:600;">Performed By:</span> {role}</div>'
+                            f'<div style="font-size:0.75rem;color:#64748b;"><span style="font-weight:600;">Affected Asset:</span> {asset or "N/A"}</div>'
+                            f'</div></div>'
+                        )
 
                     # Critical action highlight
                     card_border = severity_style["border"] if is_critical else status_color
                     card_bg = "#fffbeb" if is_critical and not success else "#ffffff"
 
-                    card_html = f'''<div style="background:{card_bg};border:1px solid #e2e8f0;border-left:4px solid {card_border};border-radius:6px;padding:12px;margin-bottom:8px;">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-    <span style="font-weight:600;color:#1e293b;">{action}</span>
-    <span style="background:{status_bg};color:{status_color};padding:2px 8px;border-radius:4px;font-size:0.7rem;font-weight:500;">{status_text}</span>
-    {badges_html}
-    </div>
-    <span style="font-size:0.75rem;color:#64748b;font-family:monospace;">{time_str}</span>
-    </div>
-    <div style="color:#475569;font-size:0.9rem;margin-top:8px;">{detail_str}</div>
-    <div style="color:#94a3b8;font-size:0.8rem;margin-top:6px;">Category: {category}</div>
-    {error_html}
-    {audit_metadata_html}
-    </div>'''
+                    card_html = (
+                        f'<div style="background:{card_bg};border:1px solid #e2e8f0;border-left:4px solid {card_border};border-radius:6px;padding:12px;margin-bottom:8px;">'
+                        f'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">'
+                        f'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+                        f'<span style="font-weight:600;color:#1e293b;">{action}</span>'
+                        f'<span style="background:{status_bg};color:{status_color};padding:2px 8px;border-radius:4px;font-size:0.7rem;font-weight:500;">{status_text}</span>'
+                        f'{badges_html}'
+                        f'</div>'
+                        f'<span style="font-size:0.75rem;color:#64748b;font-family:monospace;">{time_str}</span>'
+                        f'</div>'
+                        f'<div style="color:#475569;font-size:0.9rem;margin-top:8px;">{detail_str}</div>'
+                        f'<div style="color:#94a3b8;font-size:0.8rem;margin-top:6px;">Category: {category}</div>'
+                        f'{error_html}'
+                        f'{audit_metadata_html}'
+                        f'</div>'
+                    )
 
                     st.markdown(card_html, unsafe_allow_html=True)
 
