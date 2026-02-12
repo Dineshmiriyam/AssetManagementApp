@@ -27,7 +27,147 @@ from core.data import (
     paginate_dataframe, render_page_navigation,
 )
 from core.errors import log_error
+from database.db import get_activity_log
 from views.context import AppContext
+
+
+def _build_timeline_events(serial, asset_id, assignments_df, issues_df, repairs_df, limit=50):
+    """Merge 4 data sources into unified timeline events sorted by date DESC."""
+    events = []
+
+    # 1. Assignments
+    if not assignments_df.empty and "Serial Number" in assignments_df.columns:
+        for _, row in assignments_df[assignments_df["Serial Number"] == serial].iterrows():
+            dt = pd.to_datetime(row.get("Shipment Date"), errors="coerce")
+            if pd.notna(dt):
+                events.append({"type": "assignment", "date": dt, "data": row.to_dict()})
+
+    # 2. Issues (column name varies)
+    if not issues_df.empty:
+        serial_col = next(
+            (c for c in ["Serial Number", "Asset Serial", "Asset_Serial"] if c in issues_df.columns),
+            None,
+        )
+        if serial_col:
+            for _, row in issues_df[issues_df[serial_col] == serial].iterrows():
+                dt = pd.to_datetime(row.get("Reported Date"), errors="coerce")
+                if pd.notna(dt):
+                    events.append({"type": "issue", "date": dt, "data": row.to_dict()})
+
+    # 3. Repairs
+    if not repairs_df.empty and "Serial Number" in repairs_df.columns:
+        for _, row in repairs_df[repairs_df["Serial Number"] == serial].iterrows():
+            dt = pd.to_datetime(row.get("Sent Date"), errors="coerce")
+            if pd.notna(dt):
+                events.append({"type": "repair", "date": dt, "data": row.to_dict()})
+
+    # 4. Activity log (server-side query)
+    if asset_id is not None:
+        try:
+            activity_df = get_activity_log(asset_id=int(asset_id), limit=limit)
+            if not activity_df.empty:
+                for _, row in activity_df.iterrows():
+                    dt = pd.to_datetime(row.get("Timestamp"), errors="coerce")
+                    if pd.notna(dt):
+                        events.append({"type": "activity", "date": dt, "data": row.to_dict()})
+        except Exception:
+            pass  # Skip activity log on error
+
+    events.sort(key=lambda e: e["date"], reverse=True)
+    return events[:limit]
+
+
+def _render_timeline_card(event):
+    """Render a single timeline event card with color-coded HTML."""
+    etype = event["type"]
+    d = event["data"]
+    dt = event["date"]
+    date_str = dt.strftime("%b %d, %Y %I:%M %p") if pd.notna(dt) else "N/A"
+
+    colors = {
+        "assignment": ("#3b82f6", "#3b82f608"),
+        "issue":      ("#ef4444", "#ef444408"),
+        "repair":     ("#f97316", "#f9731608"),
+        "activity":   ("#64748b", "#64748b08"),
+    }
+    main_c, bg_c = colors.get(etype, colors["activity"])
+
+    if etype == "assignment":
+        icon = "📦"
+        title = f"Assignment: {d.get('Client Name', 'Unknown Client')}"
+        parts = [
+            f"<div><strong>Type:</strong> {d.get('Assignment Type', 'N/A')}</div>",
+            f"<div><strong>Status:</strong> {d.get('Status', 'N/A')}</div>",
+            f"<div><strong>Shipment:</strong> {d.get('Shipment Date', 'N/A')}</div>",
+        ]
+        if d.get("Return Date"):
+            parts.append(f"<div><strong>Return:</strong> {d['Return Date']}</div>")
+        details = "".join(parts)
+
+    elif etype == "issue":
+        icon = "⚠"
+        title = f"Issue: {d.get('Issue Title', 'Untitled')}"
+        sev = str(d.get("Severity", ""))
+        sev_colors = {"Low": "#10b981", "Medium": "#f59e0b", "High": "#ef4444", "Critical": "#dc2626"}
+        sev_c = sev_colors.get(sev, "#64748b")
+        parts = [
+            f'<div><span style="background:{sev_c}15;color:{sev_c};padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;">{sev}</span></div>' if sev else "",
+            f"<div style='margin-top:4px;'><strong>Type:</strong> {d.get('Issue Type', 'N/A')}</div>",
+            f"<div><strong>Status:</strong> {d.get('Status', 'N/A')}</div>",
+        ]
+        if d.get("Resolved Date"):
+            parts.append(f"<div><strong>Resolved:</strong> {d['Resolved Date']}</div>")
+        details = "".join(parts)
+
+    elif etype == "repair":
+        icon = "🔧"
+        title = f"Repair: {d.get('Vendor Name', 'Unknown Vendor')}"
+        desc = str(d.get("Repair Description", "") or "")
+        desc_short = (desc[:80] + "...") if len(desc) > 80 else desc
+        cost = d.get("Repair Cost", "")
+        cost_str = f"₹{cost}" if cost else "N/A"
+        parts = [
+            f"<div><strong>Description:</strong> {desc_short or 'N/A'}</div>",
+            f"<div><strong>Cost:</strong> {cost_str}</div>",
+            f"<div><strong>Status:</strong> {d.get('Status', 'N/A')}</div>",
+        ]
+        if d.get("Return Date"):
+            parts.append(f"<div><strong>Returned:</strong> {d['Return Date']}</div>")
+        details = "".join(parts)
+
+    else:  # activity
+        icon = "📋"
+        title = str(d.get("Action", "Activity"))
+        desc = str(d.get("Description", "") or "")
+        from_v = str(d.get("From", "") or "")
+        to_v = str(d.get("To", "") or "")
+        parts = []
+        if desc:
+            parts.append(f"<div>{desc}</div>")
+        if from_v and to_v:
+            parts.append(f"<div><strong>Changed:</strong> {from_v} → {to_v}</div>")
+        user = d.get("User", "System")
+        role = d.get("Role", "")
+        parts.append(f"<div><strong>By:</strong> {user}" + (f" ({role})" if role else "") + "</div>")
+        details = "".join(parts)
+
+    st.markdown(
+        '<div style="'
+        f"background:{bg_c};"
+        f"border-left:3px solid {main_c};"
+        "border-radius:8px;"
+        "padding:16px 16px 16px 20px;"
+        'margin-bottom:12px;">'
+        '<div style="display:flex;gap:12px;">'
+        f'<div style="font-size:1.5rem;line-height:1;">{icon}</div>'
+        '<div style="flex:1;">'
+        f'<div style="font-weight:600;color:#1e293b;">{title}</div>'
+        f'<div style="font-size:0.75rem;color:#94a3b8;margin-bottom:8px;">{date_str}</div>'
+        f'<div style="font-size:0.875rem;color:#475569;">{details}</div>'
+        "</div></div></div>",
+        unsafe_allow_html=True,
+    )
+
 
 def render(ctx: AppContext) -> None:
     """Render this page."""
@@ -600,25 +740,33 @@ def render(ctx: AppContext) -> None:
             else:
                 st.info("No assets available.")
 
-        # ========== VIEW ASSET HISTORY - LINKED RECORDS NAVIGATION ==========
+        # ========== ASSET HISTORY TIMELINE ==========
         st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
-        with st.expander("🔗 View Asset History (Assignments & Issues)", expanded=False):
+        with st.expander("📅 Asset History Timeline", expanded=False):
             if "Serial Number" in filtered_df.columns and len(filtered_df) > 0:
                 serial_options = filtered_df["Serial Number"].dropna().unique().tolist()
                 if serial_options:
                     hist_col1, hist_col2 = st.columns([3, 1])
                     with hist_col1:
                         selected_history_serial = st.selectbox(
-                            "Select Asset to View History",
+                            "Select Asset to View Timeline",
                             options=serial_options,
                             key="asset_history_serial"
                         )
+                    with hist_col2:
+                        timeline_limit = st.selectbox(
+                            "Show Events",
+                            options=[50, 100, 200],
+                            key="timeline_limit"
+                        )
 
                     if selected_history_serial:
-                        # Show asset details
                         asset_info = filtered_df[filtered_df["Serial Number"] == selected_history_serial]
                         if not asset_info.empty:
                             asset_row = asset_info.iloc[0]
+                            asset_id = asset_row.get("_id") if "_id" in asset_info.columns else None
+
+                            # Asset details header
                             st.markdown("---")
                             st.markdown("**📦 Asset Details:**")
                             d_col1, d_col2, d_col3, d_col4 = st.columns(4)
@@ -631,54 +779,51 @@ def render(ctx: AppContext) -> None:
                             with d_col4:
                                 st.markdown(f"**Status:** {asset_row.get('Current Status', 'N/A')}")
 
-                        # Show assignment history
-                        st.markdown("---")
-                        st.markdown("**📋 Assignment History:**")
-                        if not ctx.assignments_df.empty and "Serial Number" in ctx.assignments_df.columns:
-                            asset_assignments = ctx.assignments_df[ctx.assignments_df["Serial Number"] == selected_history_serial]
-                            if not asset_assignments.empty:
-                                assign_cols = ["Client Name", "Assignment Type", "Status", "Shipment Date"]
-                                available_assign_cols = [c for c in assign_cols if c in asset_assignments.columns]
-                                st.dataframe(asset_assignments[available_assign_cols], hide_index=True)
+                            st.markdown("---")
 
-                                # Quick link to Assignments page
-                                if st.button("📋 View in Assignments Page", key="link_to_assignments"):
-                                    st.session_state.current_page = "Assignments"
-                                    st.session_state.assign_search = selected_history_serial
-                                    safe_rerun()
+                            # Build timeline
+                            timeline_events = _build_timeline_events(
+                                serial=selected_history_serial,
+                                asset_id=asset_id,
+                                assignments_df=ctx.assignments_df,
+                                issues_df=ctx.issues_df,
+                                repairs_df=ctx.repairs_df,
+                                limit=timeline_limit,
+                            )
+
+                            if timeline_events:
+                                # Summary counts
+                                type_counts = {}
+                                for ev in timeline_events:
+                                    type_counts[ev["type"]] = type_counts.get(ev["type"], 0) + 1
+                                summary_parts = []
+                                if type_counts.get("assignment"):
+                                    summary_parts.append(f"{type_counts['assignment']} Assignments")
+                                if type_counts.get("issue"):
+                                    summary_parts.append(f"{type_counts['issue']} Issues")
+                                if type_counts.get("repair"):
+                                    summary_parts.append(f"{type_counts['repair']} Repairs")
+                                if type_counts.get("activity"):
+                                    summary_parts.append(f"{type_counts['activity']} Activities")
+
+                                st.markdown(
+                                    '<div style="'
+                                    "background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;"
+                                    'padding:12px 16px;margin-bottom:16px;font-size:0.875rem;color:#475569;">'
+                                    f"<strong>{len(timeline_events)} events:</strong> "
+                                    + " &bull; ".join(summary_parts)
+                                    + "</div>",
+                                    unsafe_allow_html=True,
+                                )
+
+                                for ev in timeline_events:
+                                    _render_timeline_card(ev)
                             else:
-                                st.info("No assignment records found for this asset.")
-                        else:
-                            st.info("No assignment data available.")
-
-                        # Show issues history
-                        st.markdown("---")
-                        st.markdown("**⚠️ Issue History:**")
-                        if not ctx.issues_df.empty:
-                            # Try different column names for serial
-                            serial_col = None
-                            for col in ["Asset Serial", "Serial Number", "Asset_Serial"]:
-                                if col in ctx.issues_df.columns:
-                                    serial_col = col
-                                    break
-
-                            if serial_col:
-                                asset_issues = ctx.issues_df[ctx.issues_df[serial_col] == selected_history_serial]
-                                if not asset_issues.empty:
-                                    issue_cols = ["Issue Title", "Issue Type", "Severity", "Status", "Reported Date"]
-                                    available_issue_cols = [c for c in issue_cols if c in asset_issues.columns]
-                                    st.dataframe(asset_issues[available_issue_cols], hide_index=True)
-
-                                    # Quick link to Issues page
-                                    if st.button("⚠️ View in Issues Page", key="link_to_issues"):
-                                        st.session_state.current_page = "Issues & Repairs"
-                                        safe_rerun()
-                                else:
-                                    st.success("✅ No issues reported for this asset.")
-                            else:
-                                st.info("Issues don't have linked asset serial numbers.")
-                        else:
-                            st.info("No issues data available.")
+                                render_empty_state(
+                                    "no_activity",
+                                    custom_message="No history found for this asset. Activity will appear here as assignments, issues, repairs, or status changes occur.",
+                                    show_action=False,
+                                )
             else:
                 st.info("No assets available to view history.")
 
