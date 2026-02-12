@@ -8,6 +8,8 @@
 
 | Date | Commit | Description |
 |------|--------|-------------|
+| Feb 12, 2026 | `22d467a` | Add Asset History Timeline with unified chronological view (P1) |
+| Feb 12, 2026 | `d7ec010` | Fix Streamlit deprecation and pandas SQLAlchemy warnings (P0) |
 | Feb 12, 2026 | `4556bea` | Extract auth & navigation from app.py into core/ modules (Step 8) |
 | Feb 12, 2026 | `1748e18` | Fix Activity Log rendering raw HTML as code blocks |
 | Feb 12, 2026 | `6cb802b` | Extract 13 page renderers from app.py into views/ package (Step 7) |
@@ -169,6 +171,35 @@ If you need to add/change environment variables:
 - `core/auth.py` manages its own `_AUTH_AVAILABLE` flag via `try/except ImportError` from `database.auth`
 - `core/navigation.py` exposes `render_sidebar(db_connected) -> str` returning current page name
 - Also fixed `classify_error`/`USER_SAFE_MESSAGES` missing import bug, removed 30+ dead MySQL imports
+
+### P0: Fix Deprecation Warnings
+**Problem:** Console flooded with Streamlit `use_container_width` deprecation warnings and pandas SQLAlchemy warnings on every page load.
+
+**Solution:**
+1. Replaced `use_container_width=True` → `width="stretch"` across 10 files (53 replacements) — `commit d7ec010`
+2. Added `_query_to_df()` cursor-based helper in `database/db.py`, replaced all 8 `pd.read_sql()` calls — eliminates pandas SQLAlchemy warning
+
+**Result:** Zero warnings in console.
+
+### P1: Asset History Timeline
+**Problem:** "View Asset History" section in Assets page only showed assignments and issues as separate static dataframes. No repairs, no activity log, no chronological view.
+
+**Solution:** Replaced with unified timeline merging 4 data sources chronologically — `commit 22d467a`
+
+**Data sources:**
+- `ctx.assignments_df` (client-side filter by serial) → Blue 📦 cards
+- `ctx.issues_df` (client-side filter by serial) → Red ⚠ cards
+- `ctx.repairs_df` (client-side filter by serial) → Orange 🔧 cards
+- `get_activity_log(asset_id=N)` (server-side query) → Gray 📋 cards
+
+**Features:**
+- Color-coded cards with left border per event type
+- Event limit selector (50/100/200)
+- Summary bar: "12 events: 3 Assignments, 2 Issues, 1 Repair, 6 Activities"
+- Most recent first chronological sort
+- Empty state when no history found
+
+**Files changed:** `views/assets.py` only (added 2 helper functions, replaced expander content)
 
 ### Activity Log HTML Rendering Fix
 **Problem:** Activity Log page showed raw HTML tags as text instead of rendering them.

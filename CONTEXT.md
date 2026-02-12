@@ -215,6 +215,7 @@ Lower layers never import from higher layers. `views/` uses the `AppContext` dat
 - [x] Per-row quick actions panel
 - [x] SLA filter integration
 - [x] Linked record navigation
+- [x] Asset History Timeline (unified chronological view of assignments, issues, repairs, activity log)
 - [x] Page navigation buttons (1, 2, 3...) below table
 - [x] Export CSV button at top-right
 
@@ -269,10 +270,10 @@ Lower layers never import from higher layers. `views/` uses the `AppContext` dat
 ## 7. PLANNED FEATURES (Priority Order)
 
 ### High Priority
-- [ ] Asset history timeline (view all changes to an asset)
+- [x] Asset history timeline (view all changes to an asset) — `22d467a`
+- [ ] Dashboard date range filters
 - [ ] Export to Excel (filtered data)
 - [ ] Email notifications (SLA alerts)
-- [ ] Dashboard date range filters
 
 ### Medium Priority
 - [ ] Asset photos/attachments
@@ -549,6 +550,8 @@ Local Development
 | Feb 11, 2026 | Fix compressed login page after logout on production |
 | Feb 12, 2026 | Extract modular architecture from app.py (Steps 1-8) |
 | Feb 12, 2026 | Fix Activity Log rendering raw HTML as code blocks |
+| Feb 12, 2026 | Fix Streamlit deprecation + pandas SQLAlchemy warnings (P0) |
+| Feb 12, 2026 | Asset History Timeline — unified chronological view (P1) |
 
 ### Recent Changes (February 12, 2026)
 
@@ -570,6 +573,17 @@ Local Development
 - **Problem:** Activity Log page showed raw HTML tags as text instead of rendering them
 - **Root Cause:** Indented triple-quoted f-strings had 4+ leading spaces, which Markdown treats as code blocks
 - **Solution:** Replaced with string concatenation (zero indentation) — `commit 1748e18`
+
+#### P0: Fix Deprecation Warnings (`d7ec010`)
+- Replaced `use_container_width=True` → `width="stretch"` across 10 files (53 replacements)
+- Added `_query_to_df()` cursor-based helper in `database/db.py`, replaced all 8 `pd.read_sql()` calls
+- Zero warnings in console
+
+#### P1: Asset History Timeline (`22d467a`)
+- Replaced basic "View Asset History" expander with unified chronological timeline
+- Merges 4 data sources: assignments (blue), issues (red), repairs (orange), activity log (gray)
+- Color-coded cards with left border, event limit selector (50/100/200), summary count bar
+- Files changed: `views/assets.py` only (2 helper functions + expander replacement)
 
 ### Previous Changes (February 11, 2026)
 
