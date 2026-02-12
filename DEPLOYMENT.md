@@ -1,6 +1,6 @@
 # Deployment Guide
 
-> **Last Updated:** February 11, 2026
+> **Last Updated:** February 12, 2026
 
 ---
 
@@ -8,6 +8,7 @@
 
 | Date | Commit | Description |
 |------|--------|-------------|
+| Feb 12, 2026 | `73144f5` | Extract modular architecture from app.py (Steps 1-5) |
 | Feb 11, 2026 | `6e65c40` | Fix compressed login page after logout on production |
 | Feb 11, 2026 | `629de8d` | Fix session token not persisting in production URL |
 | Feb 11, 2026 | `0b91f13` | Fix compressed login page after logout |
@@ -129,7 +130,32 @@ If you need to add/change environment variables:
 
 ---
 
-## Today's Changes (February 11, 2026)
+## Today's Changes (February 12, 2026)
+
+### Modular Architecture Extraction (Steps 1-5)
+**Problem:** `app.py` was a monolith at 11,529 lines — all config, utilities, business logic, and UI in one file.
+
+**Solution:** Extracted into 3 module layers with strict dependency rules:
+
+| Layer | Files | Purpose | Lines |
+|-------|-------|---------|-------|
+| `config/` | `constants.py`, `styles.py`, `permissions.py` | Pure data, no runtime deps | ~700 |
+| `core/` | `errors.py`, `data.py` | Error handling, data fetching, pagination, caching | ~600 |
+| `services/` | `billing_service.py`, `audit_service.py`, `asset_service.py`, `sla_service.py` | Business logic | ~813 |
+
+**Result:** app.py reduced from 11,529 → 7,150 lines (38% reduction).
+
+**Key decisions:**
+- No logic changes — functions copied exactly as-is
+- Database functions imported with `try/except ImportError` pattern in services
+- `DATA_SOURCE` read from `os.getenv` in service modules (same as app.py)
+- Constants `VALID_INITIAL_STATUSES` and `CRITICAL_ACTIONS` moved to `config/constants.py`
+
+**Remaining work (Steps 6-8):** UI components, page renderers, auth/navigation still in app.py.
+
+---
+
+## Previous Changes (February 11, 2026)
 
 ### Anti-Flicker CSS Overhaul
 **Problem:** Login page flashed on refresh; page appeared compressed during auth check

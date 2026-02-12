@@ -1,7 +1,7 @@
 # NXTBY Asset Management System - Project Context
 
-> **Last Updated:** February 11, 2026
-> **Version:** 1.4
+> **Last Updated:** February 12, 2026
+> **Version:** 1.5
 > **Status:** Production (Internal Use)
 
 ---
@@ -64,12 +64,18 @@ reportlab==4.1.0
                       ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    STREAMLIT APP                             │
-│                      (app.py)                                │
-│  ┌─────────────┬─────────────┬─────────────┬─────────────┐  │
-│  │  Dashboard  │   Assets    │   Clients   │   Billing   │  │
-│  ├─────────────┼─────────────┼─────────────┼─────────────┤  │
-│  │ Quick Acts  │ Assignments │   Issues    │  Settings   │  │
-│  └─────────────┴─────────────┴─────────────┴─────────────┘  │
+│                                                              │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │  app.py (UI pages + navigation, ~7,150 lines)        │   │
+│  └──────────┬───────────────────────────────────────────┘   │
+│             │ imports                                        │
+│  ┌──────────┴───────────────────────────────────────────┐   │
+│  │  config/        │  core/          │  services/        │   │
+│  │  ├ constants.py │  ├ errors.py    │  ├ billing_svc.py │   │
+│  │  ├ styles.py    │  └ data.py      │  ├ audit_svc.py   │   │
+│  │  └ permissions  │                 │  ├ asset_svc.py   │   │
+│  │                 │                 │  └ sla_svc.py     │   │
+│  └──────────────────────────────────────────────────────┘   │
 └─────────────────────┬───────────────────────────────────────┘
                       │
                       ▼
@@ -81,6 +87,15 @@ reportlab==4.1.0
 │  └──────────┴──────────┴──────────┴──────────┴──────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### Module Dependency Rules
+```
+config/  → depends on NOTHING (pure data)
+core/    → depends on config/, database/
+services/→ depends on config/, core/, database/
+app.py   → depends on everything above
+```
+Lower layers never import from higher layers.
 
 ---
 
@@ -328,7 +343,7 @@ reportlab==4.1.0
 
 ```
 AssetManagementApp/
-├── app.py                 # Main application (all UI + logic)
+├── app.py                 # Main application (UI pages + navigation, ~7,150 lines)
 ├── requirements.txt       # Python dependencies
 ├── .env                   # Environment variables (DO NOT COMMIT)
 ├── .gitignore
@@ -337,10 +352,31 @@ AssetManagementApp/
 ├── DEPLOYMENT.md         # Deployment checklist
 ├── README.md
 │
+├── config/               # Pure data configuration (no runtime deps)
+│   ├── __init__.py
+│   ├── constants.py      # All constants, status configs, billing config
+│   ├── styles.py         # CSS (anti-flicker, login, dashboard)
+│   └── permissions.py    # RBAC system, role permissions, action validation
+│
+├── core/                 # Shared utilities
+│   ├── __init__.py
+│   ├── errors.py         # Error handling, logging, user-safe messages
+│   └── data.py           # Data fetching, pagination, caching
+│
+├── services/             # Business logic
+│   ├── __init__.py
+│   ├── billing_service.py  # Billing status, metrics, impact calculations
+│   ├── audit_service.py    # Audit trail, activity logging, state changes
+│   ├── asset_service.py    # Asset CRUD, status transitions, RBAC validation
+│   └── sla_service.py      # SLA calculations, role-based filtering
+│
 ├── database/
+│   ├── db.py             # MySQL operations
+│   ├── auth.py           # Authentication (login, session validation)
+│   ├── config.py         # Database configuration
 │   ├── schema.sql        # Database schema
 │   ├── qr_utils.py       # QR code generation utilities
-│   └── migrations/       # Database migrations
+│   └── excel_utils.py    # Excel import utilities
 │
 └── logs/                 # Application logs (gitignored)
 ```
@@ -416,9 +452,9 @@ Local Development
 8. **query_params Pattern:** `login_user()`/`logout_user()` only handle session state. Callers set/clear `st.query_params` directly (never inside silent `try/except`)
 
 ### Technical Debt
-1. `app.py` is large (~10,000 lines) - could be split into modules
-2. Some CSS is duplicated
-3. No automated tests
+1. `app.py` is still ~7,150 lines — UI pages and components not yet extracted (Steps 6-8)
+2. No automated tests
+3. No staging environment
 
 ### Resolved Issues (Feb 11, 2026)
 1. ~~Login page flash on refresh~~ → Fixed with `.stApp { opacity: 0 }` anti-flicker (replaces fadeIn animation)
@@ -469,8 +505,22 @@ Local Development
 | Feb 11, 2026 | Login page full-width fix after logout |
 | Feb 11, 2026 | Fix session token not persisting on production |
 | Feb 11, 2026 | Fix compressed login page after logout on production |
+| Feb 12, 2026 | Extract modular architecture from app.py (Steps 1-5) |
 
-### Recent Changes (February 11, 2026)
+### Recent Changes (February 12, 2026)
+
+#### Modular Architecture Extraction (Steps 1-5)
+- **Problem:** `app.py` was 11,529 lines — a monolith containing all config, utilities, business logic, and UI code
+- **Solution:** Extracted into 3 module layers following dependency rules (lower layers never import higher):
+  - `config/` (3 files): constants, CSS styles, RBAC permissions — pure data, no runtime deps
+  - `core/` (2 files): error handling, data fetching/pagination/caching — shared utilities
+  - `services/` (4 files): billing, audit trail, asset operations, SLA calculations — business logic
+- **Result:** app.py reduced from 11,529 → 7,150 lines (38% reduction, 4,379 lines extracted into 9 modules)
+- **Commit:** `73144f5` — 13 files changed (12 new + app.py updated)
+- **No logic changes** — functions copied exactly as-is, only import paths changed
+- **Remaining (Steps 6-8):** UI components, page renderers, auth/navigation still in app.py
+
+### Previous Changes (February 11, 2026)
 
 #### Anti-Flicker CSS Overhaul
 - **Problem:** Login page flashed briefly on refresh; page appeared compressed
