@@ -1,7 +1,7 @@
 # NXTBY Asset Management System - Project Context
 
 > **Last Updated:** February 12, 2026
-> **Version:** 1.5
+> **Version:** 2.0
 > **Status:** Production (Internal Use)
 
 ---
@@ -66,10 +66,24 @@ reportlab==4.1.0
 │                    STREAMLIT APP                             │
 │                                                              │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │  app.py (UI pages + navigation, ~7,150 lines)        │   │
+│  │  app.py (auth + navigation + dispatch, ~780 lines)   │   │
 │  └──────────┬───────────────────────────────────────────┘   │
 │             │ imports                                        │
 │  ┌──────────┴───────────────────────────────────────────┐   │
+│  │  views/           (13 page renderers)                 │   │
+│  │  ├ context.py     AppContext dataclass                 │   │
+│  │  ├ dashboard.py   billing.py     activity_log.py      │   │
+│  │  ├ assets.py      reports.py     user_management.py   │   │
+│  │  ├ quick_actions.py  clients.py  import_export.py     │   │
+│  │  ├ add_asset.py   assignments.py settings.py          │   │
+│  │  └ issues_repairs.py                                  │   │
+│  ├──────────────────────────────────────────────────────┤   │
+│  │  components/      (reusable UI)                       │   │
+│  │  ├ charts.py      Analytics bar/donut/gauge charts    │   │
+│  │  ├ empty_states.py  Zero-data placeholders            │   │
+│  │  ├ feedback.py    Status badges, alerts, errors       │   │
+│  │  └ confirmation.py  Action confirmation dialogs       │   │
+│  ├──────────────────────────────────────────────────────┤   │
 │  │  config/        │  core/          │  services/        │   │
 │  │  ├ constants.py │  ├ errors.py    │  ├ billing_svc.py │   │
 │  │  ├ styles.py    │  └ data.py      │  ├ audit_svc.py   │   │
@@ -90,12 +104,14 @@ reportlab==4.1.0
 
 ### Module Dependency Rules
 ```
-config/  → depends on NOTHING (pure data)
-core/    → depends on config/, database/
-services/→ depends on config/, core/, database/
-app.py   → depends on everything above
+config/     → depends on NOTHING (pure data)
+core/       → depends on config/, database/
+services/   → depends on config/, core/, database/
+components/ → depends on config/, services/ (UI helpers)
+views/      → depends on everything above (page renderers)
+app.py      → depends on views/, config/, core/ (orchestration only)
 ```
-Lower layers never import from higher layers.
+Lower layers never import from higher layers. `views/` uses the `AppContext` dataclass pattern — each page module exports a `render(ctx)` function.
 
 ---
 
@@ -343,7 +359,7 @@ Lower layers never import from higher layers.
 
 ```
 AssetManagementApp/
-├── app.py                 # Main application (UI pages + navigation, ~7,150 lines)
+├── app.py                 # Orchestration: auth + navigation + dispatch (~780 lines)
 ├── requirements.txt       # Python dependencies
 ├── .env                   # Environment variables (DO NOT COMMIT)
 ├── .gitignore
@@ -352,9 +368,33 @@ AssetManagementApp/
 ├── DEPLOYMENT.md         # Deployment checklist
 ├── README.md
 │
+├── views/                # Page renderers (13 pages, ~5,500 lines total)
+│   ├── __init__.py       # PAGE_REGISTRY dict mapping page names → render functions
+│   ├── context.py        # AppContext dataclass (shared state for all pages)
+│   ├── dashboard.py      # Dashboard analytics, KPIs, role-based sections
+│   ├── assets.py         # Asset inventory, filters, bulk operations
+│   ├── quick_actions.py  # State transitions with confirmation dialogs
+│   ├── add_asset.py      # Asset creation form
+│   ├── assignments.py    # Assignment tracking and history
+│   ├── issues_repairs.py # Issues & repairs management
+│   ├── clients.py        # Client directory
+│   ├── reports.py        # Analytics reports
+│   ├── billing.py        # Billing period management
+│   ├── activity_log.py   # Audit trail and event history
+│   ├── user_management.py # User CRUD (admin only)
+│   ├── import_export.py  # CSV import, Excel export, QR codes
+│   └── settings.py       # System configuration, RBAC display
+│
+├── components/           # Reusable UI components
+│   ├── __init__.py
+│   ├── charts.py         # Analytics bar, donut, gauge charts (Plotly)
+│   ├── empty_states.py   # Zero-data placeholder messages
+│   ├── feedback.py       # Status badges, billing badges, inline alerts
+│   └── confirmation.py   # Action confirmation dialog pattern
+│
 ├── config/               # Pure data configuration (no runtime deps)
 │   ├── __init__.py
-│   ├── constants.py      # All constants, status configs, billing config
+│   ├── constants.py      # All constants, status configs, billing config, form options
 │   ├── styles.py         # CSS (anti-flicker, login, dashboard)
 │   └── permissions.py    # RBAC system, role permissions, action validation
 │
@@ -452,7 +492,7 @@ Local Development
 8. **query_params Pattern:** `login_user()`/`logout_user()` only handle session state. Callers set/clear `st.query_params` directly (never inside silent `try/except`)
 
 ### Technical Debt
-1. `app.py` is still ~7,150 lines — UI pages and components not yet extracted (Steps 6-8)
+1. `app.py` is ~780 lines — auth/navigation could be extracted (Step 8)
 2. No automated tests
 3. No staging environment
 
@@ -505,20 +545,28 @@ Local Development
 | Feb 11, 2026 | Login page full-width fix after logout |
 | Feb 11, 2026 | Fix session token not persisting on production |
 | Feb 11, 2026 | Fix compressed login page after logout on production |
-| Feb 12, 2026 | Extract modular architecture from app.py (Steps 1-5) |
+| Feb 12, 2026 | Extract modular architecture from app.py (Steps 1-7) |
+| Feb 12, 2026 | Fix Activity Log rendering raw HTML as code blocks |
 
 ### Recent Changes (February 12, 2026)
 
-#### Modular Architecture Extraction (Steps 1-5)
+#### Modular Architecture Extraction (Steps 1-7)
 - **Problem:** `app.py` was 11,529 lines — a monolith containing all config, utilities, business logic, and UI code
-- **Solution:** Extracted into 3 module layers following dependency rules (lower layers never import higher):
-  - `config/` (3 files): constants, CSS styles, RBAC permissions — pure data, no runtime deps
-  - `core/` (2 files): error handling, data fetching/pagination/caching — shared utilities
-  - `services/` (4 files): billing, audit trail, asset operations, SLA calculations — business logic
-- **Result:** app.py reduced from 11,529 → 7,150 lines (38% reduction, 4,379 lines extracted into 9 modules)
-- **Commit:** `73144f5` — 13 files changed (12 new + app.py updated)
-- **No logic changes** — functions copied exactly as-is, only import paths changed
-- **Remaining (Steps 6-8):** UI components, page renderers, auth/navigation still in app.py
+- **Solution:** Extracted in 7 steps into 5 module layers:
+  - **Steps 1-5** (`config/`, `core/`, `services/`): constants, CSS, RBAC, error handling, data fetching, billing/audit/asset/SLA business logic (9 modules)
+  - **Step 6** (`components/`): reusable UI components — charts, empty states, feedback badges, confirmation dialogs (4 modules)
+  - **Step 7** (`views/`): 13 page renderers with AppContext dispatch pattern (15 modules)
+- **Result:** app.py reduced from 11,529 → ~780 lines (93% reduction)
+- **Key commits:** `73144f5` (Steps 1-5), `0ca8d4f` (Step 6), `6cb802b` (Step 7)
+- **AppContext pattern:** Each page module exports `render(ctx: AppContext)`. AppContext bundles shared state (DataFrames, flags). `PAGE_REGISTRY` dict maps page names to render functions.
+- **Named `views/` not `pages/`:** Streamlit auto-detects a `pages/` directory as multipage nav — renamed to avoid collision with our custom sidebar navigation.
+- **No logic changes** — all code moved exactly as-is, only imports updated
+- **Remaining (Step 8):** Auth/navigation still in app.py (~780 lines)
+
+#### Activity Log HTML Rendering Fix
+- **Problem:** Activity Log page showed raw HTML tags as text instead of rendering them
+- **Root Cause:** Indented triple-quoted f-strings had 4+ leading spaces, which Markdown treats as code blocks
+- **Solution:** Replaced with string concatenation (zero indentation) — `commit 1748e18`
 
 ### Previous Changes (February 11, 2026)
 

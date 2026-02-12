@@ -8,6 +8,9 @@
 
 | Date | Commit | Description |
 |------|--------|-------------|
+| Feb 12, 2026 | `1748e18` | Fix Activity Log rendering raw HTML as code blocks |
+| Feb 12, 2026 | `6cb802b` | Extract 13 page renderers from app.py into views/ package (Step 7) |
+| Feb 12, 2026 | `0ca8d4f` | Extract reusable UI components from app.py (Step 6) |
 | Feb 12, 2026 | `73144f5` | Extract modular architecture from app.py (Steps 1-5) |
 | Feb 11, 2026 | `6e65c40` | Fix compressed login page after logout on production |
 | Feb 11, 2026 | `629de8d` | Fix session token not persisting in production URL |
@@ -127,31 +130,51 @@ If you need to add/change environment variables:
 | Login page compressed after logout (prod) | Move `st.query_params.clear()` out of `logout_user()` — call directly from sign out handler |
 | `KeyError: None` on logout | `st.query_params.clear()` doesn't stop execution — add `safe_rerun()` after it |
 | Duplicate items in dropdowns | Use `.dropna().unique().tolist()` not just `.tolist()` |
+| Streamlit shows extra nav entries | Never use `pages/` directory name — Streamlit auto-detects it as multipage nav. Use `views/` instead |
+| HTML rendered as raw text in `st.markdown()` | Avoid indented triple-quoted strings (4+ spaces = Markdown code block). Use string concatenation instead |
+| Module changes not picked up after edit | Streamlit caches imported modules in `sys.modules`. Restart server: kill process, clear `__pycache__`, run fresh |
 
 ---
 
 ## Today's Changes (February 12, 2026)
 
-### Modular Architecture Extraction (Steps 1-5)
+### Modular Architecture Extraction (Steps 1-7)
 **Problem:** `app.py` was a monolith at 11,529 lines — all config, utilities, business logic, and UI in one file.
 
-**Solution:** Extracted into 3 module layers with strict dependency rules:
+**Solution:** Extracted in 7 steps into 5 module layers with strict dependency rules:
 
 | Layer | Files | Purpose | Lines |
 |-------|-------|---------|-------|
 | `config/` | `constants.py`, `styles.py`, `permissions.py` | Pure data, no runtime deps | ~700 |
 | `core/` | `errors.py`, `data.py` | Error handling, data fetching, pagination, caching | ~600 |
 | `services/` | `billing_service.py`, `audit_service.py`, `asset_service.py`, `sla_service.py` | Business logic | ~813 |
+| `components/` | `charts.py`, `empty_states.py`, `feedback.py`, `confirmation.py` | Reusable UI components | ~650 |
+| `views/` | 13 page modules + `context.py` + `__init__.py` | Page renderers with AppContext dispatch | ~5,500 |
 
-**Result:** app.py reduced from 11,529 → 7,150 lines (38% reduction).
+**Result:** app.py reduced from 11,529 → ~780 lines (93% reduction).
+
+**Key commits:**
+- `73144f5` — Steps 1-5: config/, core/, services/ extraction
+- `0ca8d4f` — Step 6: components/ extraction (charts, empty states, feedback, confirmation)
+- `6cb802b` — Step 7: views/ extraction (13 page renderers + AppContext pattern)
 
 **Key decisions:**
 - No logic changes — functions copied exactly as-is
 - Database functions imported with `try/except ImportError` pattern in services
 - `DATA_SOURCE` read from `os.getenv` in service modules (same as app.py)
 - Constants `VALID_INITIAL_STATUSES` and `CRITICAL_ACTIONS` moved to `config/constants.py`
+- Named `views/` not `pages/` — Streamlit auto-detects `pages/` as multipage nav
+- AppContext dataclass bundles shared state; each page exports `render(ctx)` function
+- `PAGE_REGISTRY` dict maps page display names → render functions for dispatch
 
-**Remaining work (Steps 6-8):** UI components, page renderers, auth/navigation still in app.py.
+**Remaining work (Step 8):** Auth/navigation still in app.py (~780 lines).
+
+### Activity Log HTML Rendering Fix
+**Problem:** Activity Log page showed raw HTML tags as text instead of rendering them.
+
+**Root Cause:** Indented triple-quoted f-strings had 4+ leading spaces, which `st.markdown()` treats as Markdown code blocks (preformatted text).
+
+**Solution:** Replaced indented triple-quoted strings with parenthesized string concatenation (zero leading whitespace) — `commit 1748e18`.
 
 ---
 
