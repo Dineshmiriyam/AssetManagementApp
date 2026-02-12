@@ -278,9 +278,9 @@ def render(ctx: AppContext) -> None:
             # Search and Clear buttons side by side inside form
             btn_col1, btn_col2 = st.columns([3, 1])
             with btn_col1:
-                search_submitted = st.form_submit_button("🔍 Search", width="stretch", type="primary")
+                search_submitted = st.form_submit_button("🔍 Search", use_container_width=True, type="primary")
             with btn_col2:
-                clear_submitted = st.form_submit_button("Clear Filters", width="stretch")
+                clear_submitted = st.form_submit_button("Clear Filters", use_container_width=True)
 
         # Handle clear - set flag and rerun so flag check above clears state
         if clear_submitted:
