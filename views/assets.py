@@ -403,7 +403,7 @@ def render(ctx: AppContext) -> None:
                 data=csv,
                 file_name=f"assets_export_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
                 mime="text/csv",
-                width="stretch"
+                use_container_width=True
             )
 
         # ========== BULK OPERATIONS SECTION ==========
@@ -481,7 +481,7 @@ def render(ctx: AppContext) -> None:
                         current_statuses.add(asset_map[label]['status'])
                     st.caption(f"Current statuses: {', '.join(current_statuses)}")
 
-                    if st.button(f"🔄 Change Status for {selected_count} Assets", type="primary", width="stretch"):
+                    if st.button(f"🔄 Change Status for {selected_count} Assets", type="primary", use_container_width=True):
                         with st.spinner(f"Updating {selected_count} assets..."):
                             success_count = 0
                             fail_count = 0
@@ -559,7 +559,7 @@ def render(ctx: AppContext) -> None:
                         with ship_col2:
                             tracking_number = st.text_input("Tracking Number (optional)", key="bulk_tracking")
 
-                        if st.button(f"📦 Assign {assignable_count} Assets to {selected_client}", type="primary", width="stretch"):
+                        if st.button(f"📦 Assign {assignable_count} Assets to {selected_client}", type="primary", use_container_width=True):
                             with st.spinner(f"Assigning {assignable_count} assets..."):
                                 success_count = 0
                                 fail_count = 0
@@ -714,7 +714,7 @@ def render(ctx: AppContext) -> None:
 
                             with qa_action_col2:
                                 st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                                if st.button("🔄 Update Status", key="qa_update_status", type="primary", width="stretch"):
+                                if st.button("🔄 Update Status", key="qa_update_status", type="primary", use_container_width=True):
                                     asset_id = qa_row.get('_id', '')
                                     if asset_id:
                                         success, error_msg = update_asset_status(asset_id, qa_new_status)
@@ -734,7 +734,7 @@ def render(ctx: AppContext) -> None:
 
                             with qa_action_col3:
                                 st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                                if st.button("📋 View Full History", key="qa_view_history", width="stretch"):
+                                if st.button("📋 View Full History", key="qa_view_history", use_container_width=True):
                                     st.session_state.asset_search_serial = selected_qa_serial
                                     safe_rerun()
             else:

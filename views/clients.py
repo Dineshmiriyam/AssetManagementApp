@@ -39,7 +39,7 @@ def render(ctx: AppContext) -> None:
 
                 with ccol3:
                     st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                    if st.button("Clear", key="clear_client_filters", width="stretch"):
+                    if st.button("Clear", key="clear_client_filters", use_container_width=True):
                         for key in ["client_search", "client_type_filter"]:
                             if key in st.session_state:
                                 del st.session_state[key]

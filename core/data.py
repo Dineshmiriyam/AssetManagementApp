@@ -206,7 +206,7 @@ def render_page_navigation(key: str):
             on_click=go_to_page,
             args=(max(0, current_page - 1),),
             disabled=(current_page == 0),
-            width="stretch"
+            use_container_width=True
         )
 
     # Page number buttons
@@ -221,7 +221,7 @@ def render_page_navigation(key: str):
                     on_click=go_to_page,
                     args=(page_num,),
                     type="primary",
-                    width="stretch"
+                    use_container_width=True
                 )
             else:
                 st.button(
@@ -229,7 +229,7 @@ def render_page_navigation(key: str):
                     key=f"pg_{key}_{page_num}",
                     on_click=go_to_page,
                     args=(page_num,),
-                    width="stretch"
+                    use_container_width=True
                 )
 
     # Next button
@@ -240,7 +240,7 @@ def render_page_navigation(key: str):
             on_click=go_to_page,
             args=(min(total_pages - 1, current_page + 1),),
             disabled=(current_page >= total_pages - 1),
-            width="stretch"
+            use_container_width=True
         )
 
     # Page info text

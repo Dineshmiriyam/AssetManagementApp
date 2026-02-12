@@ -172,7 +172,7 @@ def render(ctx: AppContext) -> None:
                             )
                         with cqv_col2:
                             st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                            if st.button("🔍 View Client Assets", key="billing_view_client_btn", width="stretch"):
+                            if st.button("🔍 View Client Assets", key="billing_view_client_btn", use_container_width=True):
                                 st.session_state.current_page = "Assets"
                                 st.session_state.asset_filter = "WITH_CLIENT"
                                 st.session_state.client_location_filter = selected_billing_client
@@ -264,7 +264,7 @@ def render(ctx: AppContext) -> None:
                     billing_location_filter = st.selectbox("Location", ["All"] + location_list, key="billing_location_filter")
                 with bcol3:
                     st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                    if st.button("Clear", key="clear_billing_filters", width="stretch"):
+                    if st.button("Clear", key="clear_billing_filters", use_container_width=True):
                         for key in ["billing_search", "billing_status_filter", "billing_location_filter"]:
                             if key in st.session_state:
                                 del st.session_state[key]
@@ -307,7 +307,7 @@ def render(ctx: AppContext) -> None:
                                 )
                             with bqv_col2:
                                 st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                                if st.button("🔍 View in Assets", key="billing_view_asset_btn", width="stretch"):
+                                if st.button("🔍 View in Assets", key="billing_view_asset_btn", use_container_width=True):
                                     st.session_state.current_page = "Assets"
                                     st.session_state.asset_search_serial = selected_billing_serial
                                     safe_rerun()

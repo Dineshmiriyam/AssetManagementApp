@@ -124,7 +124,7 @@ def render(ctx: AppContext) -> None:
                     <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Exceeds threshold</div>
                 </div>
                 """, unsafe_allow_html=True)
-                if st.button("View", key="sla_critical_btn", width="stretch"):
+                if st.button("View", key="sla_critical_btn", use_container_width=True):
                     st.session_state.current_page = "Assets"
                     st.session_state.sla_filter = "critical"
                     safe_rerun()
@@ -139,7 +139,7 @@ def render(ctx: AppContext) -> None:
                     <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Approaching limit</div>
                 </div>
                 """, unsafe_allow_html=True)
-                if st.button("View", key="sla_warning_btn", width="stretch"):
+                if st.button("View", key="sla_warning_btn", use_container_width=True):
                     st.session_state.current_page = "Assets"
                     st.session_state.sla_filter = "warning"
                     safe_rerun()
@@ -155,7 +155,7 @@ def render(ctx: AppContext) -> None:
                     <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Pending review</div>
                 </div>
                 """, unsafe_allow_html=True)
-                if st.button("View", key="returns_backlog_btn", width="stretch"):
+                if st.button("View", key="returns_backlog_btn", use_container_width=True):
                     st.session_state.current_page = "Assets"
                     st.session_state.asset_filter = "RETURNED_FROM_CLIENT"
                     safe_rerun()
@@ -171,7 +171,7 @@ def render(ctx: AppContext) -> None:
                     <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">At vendor</div>
                 </div>
                 """, unsafe_allow_html=True)
-                if st.button("View", key="repair_backlog_btn", width="stretch"):
+                if st.button("View", key="repair_backlog_btn", use_container_width=True):
                     st.session_state.current_page = "Assets"
                     st.session_state.asset_filter = "WITH_VENDOR_REPAIR"
                     safe_rerun()
@@ -544,7 +544,7 @@ def render(ctx: AppContext) -> None:
                 <div class="kpi-card-label">All inventory</div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("View All", key="kpi_total", width="stretch"):
+            if st.button("View All", key="kpi_total", use_container_width=True):
                 st.session_state.current_page = "Assets"
                 st.session_state.asset_filter = "All"
                 safe_rerun()
@@ -557,7 +557,7 @@ def render(ctx: AppContext) -> None:
                 <div class="kpi-card-label">With clients</div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("View Deployed", key="kpi_deployed", width="stretch"):
+            if st.button("View Deployed", key="kpi_deployed", use_container_width=True):
                 st.session_state.current_page = "Assets"
                 st.session_state.asset_filter = "WITH_CLIENT"
                 safe_rerun()
@@ -570,7 +570,7 @@ def render(ctx: AppContext) -> None:
                 <div class="kpi-card-label">Ready to deploy</div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("View Available", key="kpi_available", width="stretch"):
+            if st.button("View Available", key="kpi_available", use_container_width=True):
                 st.session_state.current_page = "Assets"
                 st.session_state.asset_filter = "IN_STOCK_WORKING"
                 safe_rerun()
@@ -583,7 +583,7 @@ def render(ctx: AppContext) -> None:
                 <div class="kpi-card-label">At vendor</div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("View Repairs", key="kpi_repair", width="stretch"):
+            if st.button("View Repairs", key="kpi_repair", use_container_width=True):
                 st.session_state.current_page = "Assets"
                 st.session_state.asset_filter = "WITH_VENDOR_REPAIR"
                 safe_rerun()
@@ -596,7 +596,7 @@ def render(ctx: AppContext) -> None:
                 <div class="kpi-card-label">Needs review</div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("View Returned", key="kpi_returned", width="stretch"):
+            if st.button("View Returned", key="kpi_returned", use_container_width=True):
                 st.session_state.current_page = "Assets"
                 st.session_state.asset_filter = "RETURNED_FROM_CLIENT"
                 safe_rerun()
@@ -621,7 +621,7 @@ def render(ctx: AppContext) -> None:
                 <div class="kpi-card-label">Permanently sold</div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("View Sold", key="kpi_sold", width="stretch"):
+            if st.button("View Sold", key="kpi_sold", use_container_width=True):
                 st.session_state.current_page = "Assets"
                 st.session_state.asset_filter = "SOLD"
                 safe_rerun()
@@ -634,7 +634,7 @@ def render(ctx: AppContext) -> None:
                 <div class="kpi-card-label">End of life</div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("View Disposed", key="kpi_disposed", width="stretch"):
+            if st.button("View Disposed", key="kpi_disposed", use_container_width=True):
                 st.session_state.current_page = "Assets"
                 st.session_state.asset_filter = "DISPOSED"
                 safe_rerun()
@@ -752,7 +752,7 @@ def render(ctx: AppContext) -> None:
                     <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Exceeds threshold</div>
                 </div>
                 """, unsafe_allow_html=True)
-                if st.button("View →", key="analytics_sla_critical", width="stretch"):
+                if st.button("View →", key="analytics_sla_critical", use_container_width=True):
                     st.session_state.current_page = "Assets"
                     st.session_state.sla_filter = "critical"
                     safe_rerun()
@@ -767,7 +767,7 @@ def render(ctx: AppContext) -> None:
                     <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Approaching limit</div>
                 </div>
                 """, unsafe_allow_html=True)
-                if st.button("View →", key="analytics_sla_warning", width="stretch"):
+                if st.button("View →", key="analytics_sla_warning", use_container_width=True):
                     st.session_state.current_page = "Assets"
                     st.session_state.sla_filter = "warning"
                     safe_rerun()
@@ -782,7 +782,7 @@ def render(ctx: AppContext) -> None:
                     <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Within target</div>
                 </div>
                 """, unsafe_allow_html=True)
-                if st.button("View →", key="analytics_sla_ok", width="stretch"):
+                if st.button("View →", key="analytics_sla_ok", use_container_width=True):
                     st.session_state.current_page = "Assets"
                     st.session_state.sla_filter = "ok"
                     safe_rerun()
@@ -806,7 +806,7 @@ def render(ctx: AppContext) -> None:
                             <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Currently deployed</div>
                         </div>
                     """, unsafe_allow_html=True)
-                    if st.button("View Billable", key="finance_billable_btn", width="stretch"):
+                    if st.button("View Billable", key="finance_billable_btn", use_container_width=True):
                         st.session_state.current_page = "Assets"
                         st.session_state.asset_filter = "WITH_CLIENT"
                         safe_rerun()
@@ -819,7 +819,7 @@ def render(ctx: AppContext) -> None:
                             <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">@ ₹{monthly_rate:,}/asset</div>
                         </div>
                     """, unsafe_allow_html=True)
-                    if st.button("View Billing", key="finance_revenue_btn", width="stretch"):
+                    if st.button("View Billing", key="finance_revenue_btn", use_container_width=True):
                         st.session_state.current_page = "Billing"
                         safe_rerun()
 
@@ -834,7 +834,7 @@ def render(ctx: AppContext) -> None:
                             <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">Returned/Repair</div>
                         </div>
                     """, unsafe_allow_html=True)
-                    if st.button("View Paused", key="finance_paused_btn", width="stretch"):
+                    if st.button("View Paused", key="finance_paused_btn", use_container_width=True):
                         st.session_state.current_page = "Assets"
                         st.session_state.billing_paused_filter = True
                         safe_rerun()
@@ -848,7 +848,7 @@ def render(ctx: AppContext) -> None:
                             <div style="font-size: 12px; color: #6b7280; margin-top: 6px;">{billable_count} billable @ ₹{monthly_rate:,}</div>
                         </div>
                     """, unsafe_allow_html=True)
-                    if st.button("View Billing", key="admin_revenue_btn", width="stretch"):
+                    if st.button("View Billing", key="admin_revenue_btn", use_container_width=True):
                         st.session_state.current_page = "Billing"
                         safe_rerun()
 
@@ -902,7 +902,7 @@ def render(ctx: AppContext) -> None:
                     # Render chart with click events enabled
                     st.plotly_chart(
                         fig_brand,
-                        width="stretch",
+                        use_container_width=True,
                         config={
                             'displayModeBar': False,
                             'scrollZoom': False
@@ -1049,7 +1049,7 @@ def render(ctx: AppContext) -> None:
                     # Render chart
                     st.plotly_chart(
                         fig_status,
-                        width="stretch",
+                        use_container_width=True,
                         config={
                             'displayModeBar': False,
                             'scrollZoom': False

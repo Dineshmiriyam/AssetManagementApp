@@ -42,7 +42,7 @@ def render(ctx: AppContext) -> None:
 
                 with acol4:
                     st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                    if st.button("Clear", key="clear_assign_filters", width="stretch"):
+                    if st.button("Clear", key="clear_assign_filters", use_container_width=True):
                         for key in ["assign_search", "assign_client_filter", "assign_status_filter", "assign_type_filter"]:
                             if key in st.session_state:
                                 del st.session_state[key]
@@ -92,7 +92,7 @@ def render(ctx: AppContext) -> None:
                                 )
                             with qv_col2:
                                 st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                                if st.button("🔍 View Asset", key="assign_view_asset_btn", width="stretch"):
+                                if st.button("🔍 View Asset", key="assign_view_asset_btn", use_container_width=True):
                                     st.session_state.current_page = "Assets"
                                     st.session_state.asset_search_serial = selected_serial
                                     safe_rerun()

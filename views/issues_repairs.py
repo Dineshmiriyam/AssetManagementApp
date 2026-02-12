@@ -50,7 +50,7 @@ def render(ctx: AppContext) -> None:
                     issue_severity_filter = st.selectbox("Severity", ["All"] + severity_list, key="issue_severity_filter")
                 with icol4:
                     st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                    if st.button("Clear", key="clear_issue_filters", width="stretch"):
+                    if st.button("Clear", key="clear_issue_filters", use_container_width=True):
                         for key in ["issue_search", "issue_status_filter", "issue_type_filter", "issue_severity_filter"]:
                             if key in st.session_state:
                                 del st.session_state[key]
@@ -106,7 +106,7 @@ def render(ctx: AppContext) -> None:
                                 )
                             with iqv_col2:
                                 st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                                if st.button("🔍 View Asset", key="issue_view_asset_btn", width="stretch"):
+                                if st.button("🔍 View Asset", key="issue_view_asset_btn", use_container_width=True):
                                     st.session_state.current_page = "Assets"
                                     st.session_state.asset_search_serial = selected_issue_serial
                                     safe_rerun()
