@@ -66,7 +66,7 @@ reportlab==4.1.0
 │                    STREAMLIT APP                             │
 │                                                              │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │  app.py (auth + navigation + dispatch, ~780 lines)   │   │
+│  │  app.py (orchestration only, ~230 lines)              │   │
 │  └──────────┬───────────────────────────────────────────┘   │
 │             │ imports                                        │
 │  ┌──────────┴───────────────────────────────────────────┐   │
@@ -86,9 +86,9 @@ reportlab==4.1.0
 │  ├──────────────────────────────────────────────────────┤   │
 │  │  config/        │  core/          │  services/        │   │
 │  │  ├ constants.py │  ├ errors.py    │  ├ billing_svc.py │   │
-│  │  ├ styles.py    │  └ data.py      │  ├ audit_svc.py   │   │
-│  │  └ permissions  │                 │  ├ asset_svc.py   │   │
-│  │                 │                 │  └ sla_svc.py     │   │
+│  │  ├ styles.py    │  ├ data.py      │  ├ audit_svc.py   │   │
+│  │  └ permissions  │  ├ auth.py      │  ├ asset_svc.py   │   │
+│  │                 │  └ navigation   │  └ sla_svc.py     │   │
 │  └──────────────────────────────────────────────────────┘   │
 └─────────────────────┬───────────────────────────────────────┘
                       │
@@ -359,7 +359,7 @@ Lower layers never import from higher layers. `views/` uses the `AppContext` dat
 
 ```
 AssetManagementApp/
-├── app.py                 # Orchestration: auth + navigation + dispatch (~780 lines)
+├── app.py                 # Orchestration: page config + data loading + dispatch (~230 lines)
 ├── requirements.txt       # Python dependencies
 ├── .env                   # Environment variables (DO NOT COMMIT)
 ├── .gitignore
@@ -401,7 +401,9 @@ AssetManagementApp/
 ├── core/                 # Shared utilities
 │   ├── __init__.py
 │   ├── errors.py         # Error handling, logging, user-safe messages
-│   └── data.py           # Data fetching, pagination, caching
+│   ├── data.py           # Data fetching, pagination, caching
+│   ├── auth.py           # Auth session management, login page, session restore
+│   └── navigation.py     # Sidebar navigation, menu config, footer
 │
 ├── services/             # Business logic
 │   ├── __init__.py
@@ -492,7 +494,7 @@ Local Development
 8. **query_params Pattern:** `login_user()`/`logout_user()` only handle session state. Callers set/clear `st.query_params` directly (never inside silent `try/except`)
 
 ### Technical Debt
-1. `app.py` is ~780 lines — auth/navigation could be extracted (Step 8)
+1. `app.py` is ~230 lines — modular extraction complete (Steps 1-8)
 2. No automated tests
 3. No staging environment
 
@@ -545,23 +547,24 @@ Local Development
 | Feb 11, 2026 | Login page full-width fix after logout |
 | Feb 11, 2026 | Fix session token not persisting on production |
 | Feb 11, 2026 | Fix compressed login page after logout on production |
-| Feb 12, 2026 | Extract modular architecture from app.py (Steps 1-7) |
+| Feb 12, 2026 | Extract modular architecture from app.py (Steps 1-8) |
 | Feb 12, 2026 | Fix Activity Log rendering raw HTML as code blocks |
 
 ### Recent Changes (February 12, 2026)
 
-#### Modular Architecture Extraction (Steps 1-7)
+#### Modular Architecture Extraction (Steps 1-8)
 - **Problem:** `app.py` was 11,529 lines — a monolith containing all config, utilities, business logic, and UI code
-- **Solution:** Extracted in 7 steps into 5 module layers:
+- **Solution:** Extracted in 8 steps into 5 module layers:
   - **Steps 1-5** (`config/`, `core/`, `services/`): constants, CSS, RBAC, error handling, data fetching, billing/audit/asset/SLA business logic (9 modules)
   - **Step 6** (`components/`): reusable UI components — charts, empty states, feedback badges, confirmation dialogs (4 modules)
   - **Step 7** (`views/`): 13 page renderers with AppContext dispatch pattern (15 modules)
-- **Result:** app.py reduced from 11,529 → ~780 lines (93% reduction)
-- **Key commits:** `73144f5` (Steps 1-5), `0ca8d4f` (Step 6), `6cb802b` (Step 7)
+  - **Step 8** (`core/auth.py`, `core/navigation.py`): auth session management, login page, sidebar navigation, footer (2 modules)
+- **Result:** app.py reduced from 11,529 → ~230 lines (98% reduction)
+- **Key commits:** `73144f5` (Steps 1-5), `0ca8d4f` (Step 6), `6cb802b` (Step 7), `4556bea` (Step 8)
 - **AppContext pattern:** Each page module exports `render(ctx: AppContext)`. AppContext bundles shared state (DataFrames, flags). `PAGE_REGISTRY` dict maps page names to render functions.
 - **Named `views/` not `pages/`:** Streamlit auto-detects a `pages/` directory as multipage nav — renamed to avoid collision with our custom sidebar navigation.
 - **No logic changes** — all code moved exactly as-is, only imports updated
-- **Remaining (Step 8):** Auth/navigation still in app.py (~780 lines)
+- **Extraction complete** — app.py is now pure orchestration (logging, page config, auth flow, data loading, dispatch)
 
 #### Activity Log HTML Rendering Fix
 - **Problem:** Activity Log page showed raw HTML tags as text instead of rendering them

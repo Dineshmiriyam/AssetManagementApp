@@ -8,6 +8,7 @@
 
 | Date | Commit | Description |
 |------|--------|-------------|
+| Feb 12, 2026 | `4556bea` | Extract auth & navigation from app.py into core/ modules (Step 8) |
 | Feb 12, 2026 | `1748e18` | Fix Activity Log rendering raw HTML as code blocks |
 | Feb 12, 2026 | `6cb802b` | Extract 13 page renderers from app.py into views/ package (Step 7) |
 | Feb 12, 2026 | `0ca8d4f` | Extract reusable UI components from app.py (Step 6) |
@@ -138,36 +139,36 @@ If you need to add/change environment variables:
 
 ## Today's Changes (February 12, 2026)
 
-### Modular Architecture Extraction (Steps 1-7)
+### Modular Architecture Extraction (Steps 1-8)
 **Problem:** `app.py` was a monolith at 11,529 lines — all config, utilities, business logic, and UI in one file.
 
-**Solution:** Extracted in 7 steps into 5 module layers with strict dependency rules:
+**Solution:** Extracted in 8 steps into 5 module layers with strict dependency rules:
 
 | Layer | Files | Purpose | Lines |
 |-------|-------|---------|-------|
 | `config/` | `constants.py`, `styles.py`, `permissions.py` | Pure data, no runtime deps | ~700 |
-| `core/` | `errors.py`, `data.py` | Error handling, data fetching, pagination, caching | ~600 |
+| `core/` | `errors.py`, `data.py`, `auth.py`, `navigation.py` | Error handling, data, auth, sidebar | ~1,060 |
 | `services/` | `billing_service.py`, `audit_service.py`, `asset_service.py`, `sla_service.py` | Business logic | ~813 |
 | `components/` | `charts.py`, `empty_states.py`, `feedback.py`, `confirmation.py` | Reusable UI components | ~650 |
 | `views/` | 13 page modules + `context.py` + `__init__.py` | Page renderers with AppContext dispatch | ~5,500 |
 
-**Result:** app.py reduced from 11,529 → ~780 lines (93% reduction).
+**Result:** app.py reduced from 11,529 → ~230 lines (98% reduction). Extraction complete.
 
 **Key commits:**
 - `73144f5` — Steps 1-5: config/, core/, services/ extraction
 - `0ca8d4f` — Step 6: components/ extraction (charts, empty states, feedback, confirmation)
 - `6cb802b` — Step 7: views/ extraction (13 page renderers + AppContext pattern)
+- `4556bea` — Step 8: core/auth.py + core/navigation.py extraction (auth, login page, sidebar, footer)
 
 **Key decisions:**
 - No logic changes — functions copied exactly as-is
-- Database functions imported with `try/except ImportError` pattern in services
-- `DATA_SOURCE` read from `os.getenv` in service modules (same as app.py)
-- Constants `VALID_INITIAL_STATUSES` and `CRITICAL_ACTIONS` moved to `config/constants.py`
+- Database functions imported with `try/except ImportError` pattern in services and core/auth
 - Named `views/` not `pages/` — Streamlit auto-detects `pages/` as multipage nav
 - AppContext dataclass bundles shared state; each page exports `render(ctx)` function
 - `PAGE_REGISTRY` dict maps page display names → render functions for dispatch
-
-**Remaining work (Step 8):** Auth/navigation still in app.py (~780 lines).
+- `core/auth.py` manages its own `_AUTH_AVAILABLE` flag via `try/except ImportError` from `database.auth`
+- `core/navigation.py` exposes `render_sidebar(db_connected) -> str` returning current page name
+- Also fixed `classify_error`/`USER_SAFE_MESSAGES` missing import bug, removed 30+ dead MySQL imports
 
 ### Activity Log HTML Rendering Fix
 **Problem:** Activity Log page showed raw HTML tags as text instead of rendering them.
