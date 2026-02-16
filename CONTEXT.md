@@ -1,7 +1,7 @@
 # NXTBY Asset Management System - Project Context
 
-> **Last Updated:** February 12, 2026
-> **Version:** 2.0
+> **Last Updated:** February 16, 2026
+> **Version:** 2.1
 > **Status:** Production (Internal Use)
 
 ---
@@ -203,6 +203,8 @@ Lower layers never import from higher layers. `views/` uses the `AppContext` dat
 - [x] Revenue metrics (Admin/Finance only)
 - [x] Interactive charts (click to filter)
 - [x] Quick action buttons
+- [x] Date range filters with presets (This Week, This Month, Last Month, Last 30/90 Days, Custom)
+- [x] Period Activity section (time-filtered counts: New Assets, Assignments, Returns, Issues, Repairs)
 
 ### Assets Page
 - [x] View all assets with filters
@@ -218,6 +220,7 @@ Lower layers never import from higher layers. `views/` uses the `AppContext` dat
 - [x] Asset History Timeline (unified chronological view of assignments, issues, repairs, activity log)
 - [x] Page navigation buttons (1, 2, 3...) below table
 - [x] Export CSV button at top-right
+- [x] Export to Excel (formatted, orange headers) + CSV side-by-side
 
 ### Quick Actions
 - [x] Assign asset to client
@@ -261,6 +264,7 @@ Lower layers never import from higher layers. `views/` uses the `AppContext` dat
 ### Other Features
 - [x] QR code generation (single and bulk PDF)
 - [x] Excel import
+- [x] Export to Excel on all data pages (Assets, Assignments, Issues, Repairs, Reports, Billing) — formatted with orange headers, auto-width columns
 - [x] Session management with token persistence (survives hard refresh)
 - [x] Login/logout with activity logging
 - [x] Pagination navigation on all tables (Assets, Assignments, Issues, Repairs, Clients, Export)
@@ -271,8 +275,8 @@ Lower layers never import from higher layers. `views/` uses the `AppContext` dat
 
 ### High Priority
 - [x] Asset history timeline (view all changes to an asset) — `22d467a`
-- [ ] Dashboard date range filters
-- [ ] Export to Excel (filtered data)
+- [x] Dashboard date range filters — `de2511f`
+- [x] Export to Excel (filtered data) — `de2511f`
 - [ ] Email notifications (SLA alerts)
 
 ### Medium Priority
@@ -419,7 +423,7 @@ AssetManagementApp/
 │   ├── config.py         # Database configuration
 │   ├── schema.sql        # Database schema
 │   ├── qr_utils.py       # QR code generation utilities
-│   └── excel_utils.py    # Excel import utilities
+│   └── excel_utils.py    # Excel import + generic export utilities
 │
 └── logs/                 # Application logs (gitignored)
 ```
@@ -499,6 +503,9 @@ Local Development
 2. No automated tests
 3. No staging environment
 
+### Resolved Issues (Feb 16, 2026)
+1. ~~Production crash: `width="stretch"` incompatible with Streamlit 1.31.0~~ → Reverted all 53 occurrences back to `use_container_width=True` (`525353a`, `b9b9e38`)
+
 ### Resolved Issues (Feb 11, 2026)
 1. ~~Login page flash on refresh~~ → Fixed with `.stApp { opacity: 0 }` anti-flicker (replaces fadeIn animation)
 2. ~~Sidebar missing after login~~ → Anti-flicker CSS had `width: 0` on sidebar never overridden; simplified to `display: none` only
@@ -552,8 +559,32 @@ Local Development
 | Feb 12, 2026 | Fix Activity Log rendering raw HTML as code blocks |
 | Feb 12, 2026 | Fix Streamlit deprecation + pandas SQLAlchemy warnings (P0) |
 | Feb 12, 2026 | Asset History Timeline — unified chronological view (P1) |
+| Feb 16, 2026 | Production hotfix: revert `width="stretch"` → `use_container_width=True` (53 occurrences) |
+| Feb 16, 2026 | Dashboard date range filters with presets + Period Activity section |
+| Feb 16, 2026 | Export to Excel on all data pages (generic utility + formatted headers) |
 
-### Recent Changes (February 12, 2026)
+### Recent Changes (February 16, 2026)
+
+#### Production Hotfix: `width="stretch"` Incompatibility (`525353a`, `b9b9e38`)
+- **Problem:** P0 fix replaced `use_container_width=True` → `width="stretch"` across 53 calls, but production runs Streamlit 1.31.0 which doesn't support `width` param on any widget
+- **Root Cause:** Local dev runs Streamlit 1.53.1 (22-version gap). Local testing passed but production crashed on login and dashboard
+- **Solution:** Reverted all 53 occurrences back to `use_container_width=True`. First hotfix (`525353a`) covered 3 `form_submit_button` calls; full fix (`b9b9e38`) reverted remaining 50 across 9 files
+- **Lesson:** Always verify API compatibility against `requirements.txt` pinned version, not local installed version
+
+#### Dashboard Date Range Filters (`de2511f`)
+- Added date range selector UI after Refresh button with preset options (This Week, This Month, Last Month, Last 30 Days, Last 90 Days, Custom)
+- Added Period Activity section showing time-filtered counts: New Assets, Assignments, Returns, Issues, Repairs
+- Existing KPI cards remain unchanged (point-in-time status counts)
+- Helper functions: `_get_date_presets()`, `_count_in_range(df, date_col, start, end)`
+- Files changed: `views/dashboard.py` only
+
+#### Export to Excel — All Data Pages (`de2511f`)
+- Added generic `export_dataframe_to_excel(df, sheet_name)` to `database/excel_utils.py`
+- Formatted Excel: orange headers (#F97316), auto-width columns, frozen header row, borders
+- Side-by-side Excel + CSV download buttons on: Assets, Assignments, Issues, Repairs, Reports (3 tabs), Billing
+- Files changed: `database/excel_utils.py`, `views/assets.py`, `views/billing.py`, `views/reports.py`, `views/assignments.py`, `views/issues_repairs.py`
+
+### Previous Changes (February 12, 2026)
 
 #### Modular Architecture Extraction (Steps 1-8)
 - **Problem:** `app.py` was 11,529 lines — a monolith containing all config, utilities, business logic, and UI code
@@ -574,10 +605,11 @@ Local Development
 - **Root Cause:** Indented triple-quoted f-strings had 4+ leading spaces, which Markdown treats as code blocks
 - **Solution:** Replaced with string concatenation (zero indentation) — `commit 1748e18`
 
-#### P0: Fix Deprecation Warnings (`d7ec010`)
+#### P0: Fix Deprecation Warnings (`d7ec010`) — ⚠️ Partially Reverted
 - Replaced `use_container_width=True` → `width="stretch"` across 10 files (53 replacements)
-- Added `_query_to_df()` cursor-based helper in `database/db.py`, replaced all 8 `pd.read_sql()` calls
-- Zero warnings in console
+- **REVERTED:** `width="stretch"` back to `use_container_width=True` — production Streamlit 1.31.0 doesn't support `width` param (`525353a`, `b9b9e38`)
+- Added `_query_to_df()` cursor-based helper in `database/db.py`, replaced all 8 `pd.read_sql()` calls ← this part remains
+- Streamlit deprecation warnings will persist until production Streamlit is upgraded
 
 #### P1: Asset History Timeline (`22d467a`)
 - Replaced basic "View Asset History" expander with unified chronological timeline

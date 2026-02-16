@@ -1,6 +1,6 @@
 # Deployment Guide
 
-> **Last Updated:** February 12, 2026
+> **Last Updated:** February 16, 2026
 
 ---
 
@@ -8,6 +8,9 @@
 
 | Date | Commit | Description |
 |------|--------|-------------|
+| Feb 16, 2026 | `de2511f` | Dashboard date range filters + Export to Excel on all data pages |
+| Feb 16, 2026 | `b9b9e38` | **HOTFIX:** Revert all 50 remaining `width="stretch"` → `use_container_width=True` |
+| Feb 16, 2026 | `525353a` | **HOTFIX:** Revert 3 `form_submit_button` `width="stretch"` (production crash) |
 | Feb 12, 2026 | `22d467a` | Add Asset History Timeline with unified chronological view (P1) |
 | Feb 12, 2026 | `d7ec010` | Fix Streamlit deprecation and pandas SQLAlchemy warnings (P0) |
 | Feb 12, 2026 | `4556bea` | Extract auth & navigation from app.py into core/ modules (Step 8) |
@@ -64,6 +67,7 @@ git push origin main
 □ No console errors in browser
 □ Feature works as expected
 □ Other features still work
+□ Widget params compatible with Streamlit 1.31.0 (use_container_width=True, NOT width="stretch")
 ```
 
 ---
@@ -136,10 +140,70 @@ If you need to add/change environment variables:
 | Streamlit shows extra nav entries | Never use `pages/` directory name — Streamlit auto-detects it as multipage nav. Use `views/` instead |
 | HTML rendered as raw text in `st.markdown()` | Avoid indented triple-quoted strings (4+ spaces = Markdown code block). Use string concatenation instead |
 | Module changes not picked up after edit | Streamlit caches imported modules in `sys.modules`. Restart server: kill process, clear `__pycache__`, run fresh |
+| `width="stretch"` crashes production | Production runs Streamlit 1.31.0 — use `use_container_width=True` only. Never use `width` param on widgets |
 
 ---
 
-## Today's Changes (February 12, 2026)
+## Today's Changes (February 16, 2026)
+
+### Production Hotfix: `width="stretch"` Incompatibility
+**Problem:** P0 fix (`d7ec010`) replaced `use_container_width=True` → `width="stretch"` across 53 widget calls. Production runs Streamlit 1.31.0 (pinned in `requirements.txt`) which does NOT support the `width` parameter on ANY widget. Local dev ran 1.53.1 where it works.
+
+**Impact:** Production crashed on login page (`form_submit_button`) and dashboard (`st.button`). Two outages within hours.
+
+**Fix (2 commits):**
+1. `525353a` — Reverted 3 `st.form_submit_button` calls (incomplete — only fixed login)
+2. `b9b9e38` — Reverted all 50 remaining `width="stretch"` across 9 files (full fix)
+
+**Root Cause:** 22-version gap between local (1.53.1) and production (1.31.0). Local testing cannot catch API compatibility issues.
+
+**Lesson Learned:** Always verify widget parameter compatibility against `requirements.txt` pinned version. Added to Common Issues table below.
+
+### Dashboard Date Range Filters (`de2511f`)
+**Feature:** Date range selector on Dashboard with preset options and Period Activity metrics.
+
+**Date Range Selector (after Refresh button):**
+- Presets: None (All Time), This Week, This Month, Last Month, Last 30 Days, Last 90 Days, Custom
+- Custom mode shows two `st.date_input` pickers
+- Clear button resets to All Time
+
+**Period Activity Section (after Quick Actions):**
+- Only appears when a date range is selected
+- 5 KPI cards: New Assets (`created_at`), Assignments (`Shipment Date`), Returns (`Return Date`), Issues (`Reported Date`), Repairs (`Sent Date`)
+- Uses existing `kpi-card` CSS classes
+
+**Helper functions added:**
+- `_get_date_presets()` — returns dict of preset name → (start_date, end_date)
+- `_count_in_range(df, date_col, start, end)` — counts rows where date falls in range
+
+**Files changed:** `views/dashboard.py` only
+
+### Export to Excel — All Data Pages (`de2511f`)
+**Feature:** Generic Excel export with formatted headers on all data pages.
+
+**New function:** `export_dataframe_to_excel(df, sheet_name)` in `database/excel_utils.py`
+- Orange headers (#F97316), white bold font, auto-width columns (max 50 chars)
+- Frozen header row, thin borders on all cells
+- Filters out internal `_id` columns, handles NaN → None
+- Returns `BytesIO` buffer for `st.download_button`
+
+**Pages updated with Excel + CSV side-by-side buttons:**
+| Page | Data Exported |
+|------|--------------|
+| Assets | Filtered assets table |
+| Assignments | Filtered assignments table |
+| Issues & Repairs (Issues tab) | Filtered issues table |
+| Issues & Repairs (Repairs tab) | Repairs table |
+| Reports — Inventory | Full asset inventory |
+| Reports — Billing Summary | Client billing breakdown |
+| Reports — Repair Analysis | Repairs data |
+| Billing | Billing summary table |
+
+**Files changed:** `database/excel_utils.py`, `views/assets.py`, `views/billing.py`, `views/reports.py`, `views/assignments.py`, `views/issues_repairs.py`
+
+---
+
+## Previous Changes (February 12, 2026)
 
 ### Modular Architecture Extraction (Steps 1-8)
 **Problem:** `app.py` was a monolith at 11,529 lines — all config, utilities, business logic, and UI in one file.
@@ -172,14 +236,15 @@ If you need to add/change environment variables:
 - `core/navigation.py` exposes `render_sidebar(db_connected) -> str` returning current page name
 - Also fixed `classify_error`/`USER_SAFE_MESSAGES` missing import bug, removed 30+ dead MySQL imports
 
-### P0: Fix Deprecation Warnings
+### P0: Fix Deprecation Warnings — ⚠️ Partially Reverted
 **Problem:** Console flooded with Streamlit `use_container_width` deprecation warnings and pandas SQLAlchemy warnings on every page load.
 
 **Solution:**
 1. Replaced `use_container_width=True` → `width="stretch"` across 10 files (53 replacements) — `commit d7ec010`
-2. Added `_query_to_df()` cursor-based helper in `database/db.py`, replaced all 8 `pd.read_sql()` calls — eliminates pandas SQLAlchemy warning
+2. **REVERTED:** `width="stretch"` back to `use_container_width=True` — production Streamlit 1.31.0 doesn't support `width` param (`525353a`, `b9b9e38`)
+3. Added `_query_to_df()` cursor-based helper in `database/db.py`, replaced all 8 `pd.read_sql()` calls — eliminates pandas SQLAlchemy warning ← this part remains
 
-**Result:** Zero warnings in console.
+**Result:** pandas SQLAlchemy warnings eliminated. Streamlit deprecation warnings persist until production version is upgraded.
 
 ### P1: Asset History Timeline
 **Problem:** "View Asset History" section in Assets page only showed assignments and issues as separate static dataframes. No repairs, no activity log, no chronological view.
