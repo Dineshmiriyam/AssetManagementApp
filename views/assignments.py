@@ -123,6 +123,24 @@ def render(ctx: AppContext) -> None:
                 paginated_assignments = paginate_dataframe(filtered_assignments, "assignments_table", show_controls=True)
                 st.dataframe(paginated_assignments, hide_index=True)
                 render_page_navigation("assignments_table")
+
+                # Export
+                exp_c1, exp_c2, exp_spacer = st.columns([1, 1, 3])
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+                with exp_c1:
+                    try:
+                        from database.excel_utils import export_dataframe_to_excel
+                        excel_buf = export_dataframe_to_excel(filtered_assignments, "Assignments")
+                        st.download_button("📥 Excel", excel_buf.getvalue(),
+                            f"assignments_{timestamp}.xlsx",
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True)
+                    except Exception:
+                        pass
+                with exp_c2:
+                    st.download_button("📥 CSV", filtered_assignments.to_csv(index=False),
+                        f"assignments_{timestamp}.csv", "text/csv",
+                        use_container_width=True)
             else:
                 render_empty_state("no_assignments")
 

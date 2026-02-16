@@ -137,6 +137,24 @@ def render(ctx: AppContext) -> None:
                 paginated_issues = paginate_dataframe(filtered_issues, "issues_table", show_controls=True)
                 st.dataframe(paginated_issues[available_cols], hide_index=True)
                 render_page_navigation("issues_table")
+
+                # Export
+                exp_c1, exp_c2, exp_spacer = st.columns([1, 1, 3])
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+                with exp_c1:
+                    try:
+                        from database.excel_utils import export_dataframe_to_excel
+                        excel_buf = export_dataframe_to_excel(filtered_issues, "Issues")
+                        st.download_button("📥 Excel", excel_buf.getvalue(),
+                            f"issues_{timestamp}.xlsx",
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True)
+                    except Exception:
+                        pass
+                with exp_c2:
+                    st.download_button("📥 CSV", filtered_issues.to_csv(index=False),
+                        f"issues_{timestamp}.csv", "text/csv",
+                        use_container_width=True)
             else:
                 render_empty_state("no_issues", show_action=False)
 
@@ -165,6 +183,24 @@ def render(ctx: AppContext) -> None:
                 paginated_repairs = paginate_dataframe(ctx.repairs_df, "repairs_table", show_controls=True)
                 st.dataframe(paginated_repairs[available_cols], hide_index=True)
                 render_page_navigation("repairs_table")
+
+                # Export
+                exp_c1, exp_c2, exp_spacer = st.columns([1, 1, 3])
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+                with exp_c1:
+                    try:
+                        from database.excel_utils import export_dataframe_to_excel
+                        excel_buf = export_dataframe_to_excel(ctx.repairs_df, "Repairs")
+                        st.download_button("📥 Excel", excel_buf.getvalue(),
+                            f"repairs_{timestamp}.xlsx",
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True)
+                    except Exception:
+                        pass
+                with exp_c2:
+                    st.download_button("📥 CSV", ctx.repairs_df.to_csv(index=False),
+                        f"repairs_{timestamp}.csv", "text/csv",
+                        use_container_width=True)
             else:
                 render_empty_state("no_repairs", show_action=False)
 

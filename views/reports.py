@@ -109,6 +109,25 @@ def render(ctx: AppContext) -> None:
                         key="model_bar_chart"
                     )
 
+                # Export inventory data
+                st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+                exp_c1, exp_c2, exp_spacer = st.columns([1, 1, 3])
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+                with exp_c1:
+                    try:
+                        from database.excel_utils import export_dataframe_to_excel
+                        excel_buf = export_dataframe_to_excel(ctx.assets_df, "Inventory")
+                        st.download_button("📥 Excel", excel_buf.getvalue(),
+                            f"inventory_report_{timestamp}.xlsx",
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True)
+                    except Exception:
+                        pass
+                with exp_c2:
+                    st.download_button("📥 CSV", ctx.assets_df.to_csv(index=False),
+                        f"inventory_report_{timestamp}.csv", "text/csv",
+                        use_container_width=True)
+
         # Billing tab only shown for admin and finance roles
         if tab2 is not None:
             with tab2:
@@ -145,6 +164,24 @@ def render(ctx: AppContext) -> None:
 
                     billing_summary = pd.DataFrame(client_data)
                     st.dataframe(billing_summary, hide_index=True)
+
+                    # Export billing summary
+                    exp_c1, exp_c2, exp_spacer = st.columns([1, 1, 3])
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+                    with exp_c1:
+                        try:
+                            from database.excel_utils import export_dataframe_to_excel
+                            excel_buf = export_dataframe_to_excel(billing_summary, "Billing")
+                            st.download_button("📥 Excel", excel_buf.getvalue(),
+                                f"billing_summary_{timestamp}.xlsx",
+                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                use_container_width=True)
+                        except Exception:
+                            pass
+                    with exp_c2:
+                        st.download_button("📥 CSV", billing_summary.to_csv(index=False),
+                            f"billing_summary_{timestamp}.csv", "text/csv",
+                            use_container_width=True)
 
                     # Summary metrics
                     metric_cols = st.columns(3)
@@ -191,6 +228,25 @@ def render(ctx: AppContext) -> None:
                     if "Is Replaced" in ctx.repairs_df.columns:
                         replaced = ctx.repairs_df["Is Replaced"].sum()
                         st.metric("Replaced Units", int(replaced) if pd.notna(replaced) else 0)
+
+                # Export repair data
+                st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+                exp_c1, exp_c2, exp_spacer = st.columns([1, 1, 3])
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+                with exp_c1:
+                    try:
+                        from database.excel_utils import export_dataframe_to_excel
+                        excel_buf = export_dataframe_to_excel(ctx.repairs_df, "Repairs")
+                        st.download_button("📥 Excel", excel_buf.getvalue(),
+                            f"repair_analysis_{timestamp}.xlsx",
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True)
+                    except Exception:
+                        pass
+                with exp_c2:
+                    st.download_button("📥 CSV", ctx.repairs_df.to_csv(index=False),
+                        f"repair_analysis_{timestamp}.csv", "text/csv",
+                        use_container_width=True)
             else:
                 st.info("No repair data available")
 

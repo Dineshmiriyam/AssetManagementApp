@@ -120,6 +120,49 @@ def export_assets_to_excel(df: pd.DataFrame) -> BytesIO:
     return output
 
 
+def export_dataframe_to_excel(df: pd.DataFrame, sheet_name: str = "Data") -> BytesIO:
+    """Export any DataFrame to formatted Excel with orange headers and borders."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = sheet_name
+
+    columns = [c for c in df.columns if not str(c).startswith("_")]
+    df_export = df[columns].copy()
+
+    # Header row
+    for col_idx, col_name in enumerate(columns, 1):
+        cell = ws.cell(row=1, column=col_idx, value=str(col_name))
+        cell.fill = HEADER_FILL
+        cell.font = HEADER_FONT
+        cell.alignment = HEADER_ALIGNMENT
+        cell.border = CELL_BORDER
+
+    # Data rows
+    for row_idx, row_data in enumerate(df_export.values, 2):
+        for col_idx, value in enumerate(row_data, 1):
+            if pd.isna(value):
+                value = None
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.border = CELL_BORDER
+            cell.alignment = Alignment(vertical="center")
+
+    # Auto-adjust column widths
+    for col_idx, col_name in enumerate(columns, 1):
+        max_len = len(str(col_name))
+        for row_idx in range(2, min(len(df_export) + 2, 102)):  # Sample first 100 rows
+            val = ws.cell(row=row_idx, column=col_idx).value
+            if val is not None:
+                max_len = max(max_len, len(str(val)))
+        ws.column_dimensions[ws.cell(row=1, column=col_idx).column_letter].width = min(max_len + 2, 50)
+
+    ws.freeze_panes = "A2"
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output
+
+
 def generate_import_template() -> BytesIO:
     """
     Generate a blank Excel template for importing assets.

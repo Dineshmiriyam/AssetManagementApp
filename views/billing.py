@@ -216,14 +216,30 @@ def render(ctx: AppContext) -> None:
                     st.metric("Fleet Utilization", f"{billing_metrics['utilization_rate']:.1f}%",
                               help="Percentage of fleet currently generating revenue")
 
-                # Export option
-                csv = billing_summary.to_csv(index=False)
-                st.download_button(
-                    label="Export Billing Report",
-                    data=csv,
-                    file_name="billing_report.csv",
-                    mime="text/csv"
-                )
+                # Export options
+                exp_c1, exp_c2 = st.columns(2)
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+                with exp_c1:
+                    try:
+                        from database.excel_utils import export_dataframe_to_excel
+                        excel_buf = export_dataframe_to_excel(billing_summary, "Billing")
+                        st.download_button(
+                            label="📥 Excel",
+                            data=excel_buf.getvalue(),
+                            file_name=f"billing_{timestamp}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True,
+                        )
+                    except Exception:
+                        pass
+                with exp_c2:
+                    st.download_button(
+                        label="📥 CSV",
+                        data=billing_summary.to_csv(index=False),
+                        file_name=f"billing_{timestamp}.csv",
+                        mime="text/csv",
+                        use_container_width=True,
+                    )
             else:
                 render_empty_state("no_billable_assets", show_action=True)
 

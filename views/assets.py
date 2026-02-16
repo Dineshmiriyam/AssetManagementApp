@@ -397,14 +397,29 @@ def render(ctx: AppContext) -> None:
             </div>
             """, unsafe_allow_html=True)
         with results_col2:
-            csv = filtered_df.to_csv(index=False)
-            st.download_button(
-                label="📥 Export CSV",
-                data=csv,
-                file_name=f"assets_export_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
+            exp_c1, exp_c2 = st.columns(2)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+            with exp_c1:
+                try:
+                    from database.excel_utils import export_dataframe_to_excel
+                    excel_buf = export_dataframe_to_excel(filtered_df, "Assets")
+                    st.download_button(
+                        label="📥 Excel",
+                        data=excel_buf.getvalue(),
+                        file_name=f"assets_{timestamp}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True,
+                    )
+                except Exception:
+                    pass
+            with exp_c2:
+                st.download_button(
+                    label="📥 CSV",
+                    data=filtered_df.to_csv(index=False),
+                    file_name=f"assets_{timestamp}.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                )
 
         # ========== BULK OPERATIONS SECTION ==========
         # Initialize session state for bulk selection

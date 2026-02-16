@@ -25,6 +25,29 @@ from components.feedback import render_error_state, render_inline_error
 from core.data import safe_rerun, clear_cache
 from views.context import AppContext
 
+def _get_date_presets():
+    """Return dict of preset name -> (start_date, end_date)."""
+    today = date.today()
+    first_of_month = today.replace(day=1)
+    last_month_end = first_of_month - timedelta(days=1)
+    last_month_start = last_month_end.replace(day=1)
+    return {
+        "This Week": (today - timedelta(days=today.weekday()), today),
+        "This Month": (first_of_month, today),
+        "Last Month": (last_month_start, last_month_end),
+        "Last 30 Days": (today - timedelta(days=30), today),
+        "Last 90 Days": (today - timedelta(days=90), today),
+    }
+
+
+def _count_in_range(df, date_col, start, end):
+    """Count rows where date_col falls within [start, end]."""
+    if df.empty or date_col not in df.columns:
+        return 0
+    dates = pd.to_datetime(df[date_col], errors="coerce").dt.date
+    return int(((dates >= start) & (dates <= end)).sum())
+
+
 def render(ctx: AppContext) -> None:
     """Render this page."""
     st.markdown('<p class="main-header">Asset Management Dashboard</p>', unsafe_allow_html=True)
@@ -89,6 +112,43 @@ def render(ctx: AppContext) -> None:
             if st.button("Refresh", key="refresh_data"):
                 clear_cache()
                 safe_rerun()
+
+        # ============================================
+        # DATE RANGE FILTER
+        # ============================================
+        if "dash_date_range" not in st.session_state:
+            st.session_state.dash_date_range = {"enabled": False, "start": None, "end": None}
+
+        presets = _get_date_presets()
+        preset_names = list(presets.keys())
+
+        dr_col1, dr_col2, dr_col3 = st.columns([2, 3, 1])
+        with dr_col1:
+            preset_choice = st.selectbox(
+                "Activity Period",
+                ["All Time"] + preset_names + ["Custom"],
+                key="dash_preset",
+            )
+        with dr_col2:
+            if preset_choice == "Custom":
+                dc1, dc2 = st.columns(2)
+                with dc1:
+                    custom_start = st.date_input("From", value=date.today() - timedelta(days=30), key="dash_start")
+                with dc2:
+                    custom_end = st.date_input("To", value=date.today(), key="dash_end")
+                st.session_state.dash_date_range = {"enabled": True, "start": custom_start, "end": custom_end}
+            elif preset_choice != "All Time":
+                s, e = presets[preset_choice]
+                st.session_state.dash_date_range = {"enabled": True, "start": s, "end": e}
+                st.caption(f"{s.strftime('%b %d, %Y')} — {e.strftime('%b %d, %Y')}")
+            else:
+                st.session_state.dash_date_range = {"enabled": False, "start": None, "end": None}
+        with dr_col3:
+            st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+            if st.session_state.dash_date_range["enabled"]:
+                if st.button("Clear", key="clear_date_filter"):
+                    st.session_state.dash_date_range = {"enabled": False, "start": None, "end": None}
+                    safe_rerun()
 
         # ============================================
         # ADMIN-SPECIFIC DASHBOARD LAYOUT
@@ -713,6 +773,76 @@ def render(ctx: AppContext) -> None:
                 st.caption("No assets need repair")
 
         st.markdown('</div>', unsafe_allow_html=True)
+
+        # ============================================
+        # PERIOD ACTIVITY (visible when date filter active)
+        # ============================================
+        if st.session_state.dash_date_range["enabled"]:
+            dr = st.session_state.dash_date_range
+            dr_start, dr_end = dr["start"], dr["end"]
+
+            st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="section-title">
+                <div class="section-title-icon" style="background: #3b82f6;"></div>
+                PERIOD ACTIVITY
+            </div>
+            <div style="font-size: 12px; color: #64748b; margin-bottom: 12px;">
+                {dr_start.strftime('%b %d, %Y')} — {dr_end.strftime('%b %d, %Y')}
+            </div>
+            """, unsafe_allow_html=True)
+
+            pa_col1, pa_col2, pa_col3, pa_col4, pa_col5 = st.columns(5)
+
+            with pa_col1:
+                val = _count_in_range(ctx.assets_df, "created_at", dr_start, dr_end)
+                st.markdown(f"""
+                <div class="kpi-card neutral">
+                    <div class="kpi-card-title">NEW ASSETS</div>
+                    <div class="kpi-card-value">{val}</div>
+                    <div class="kpi-card-label">Added in period</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with pa_col2:
+                val = _count_in_range(ctx.assignments_df, "Shipment Date", dr_start, dr_end)
+                st.markdown(f"""
+                <div class="kpi-card blue">
+                    <div class="kpi-card-title">ASSIGNMENTS</div>
+                    <div class="kpi-card-value">{val}</div>
+                    <div class="kpi-card-label">Shipped to clients</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with pa_col3:
+                val = _count_in_range(ctx.assignments_df, "Return Date", dr_start, dr_end)
+                st.markdown(f"""
+                <div class="kpi-card green">
+                    <div class="kpi-card-title">RETURNS</div>
+                    <div class="kpi-card-value">{val}</div>
+                    <div class="kpi-card-label">Returned from clients</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with pa_col4:
+                val = _count_in_range(ctx.issues_df, "Reported Date", dr_start, dr_end)
+                st.markdown(f"""
+                <div class="kpi-card red">
+                    <div class="kpi-card-title">ISSUES</div>
+                    <div class="kpi-card-value">{val}</div>
+                    <div class="kpi-card-label">Reported in period</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with pa_col5:
+                val = _count_in_range(ctx.repairs_df, "Sent Date", dr_start, dr_end)
+                st.markdown(f"""
+                <div class="kpi-card purple">
+                    <div class="kpi-card-title">REPAIRS</div>
+                    <div class="kpi-card-value">{val}</div>
+                    <div class="kpi-card-label">Sent to vendor</div>
+                </div>
+                """, unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
 
