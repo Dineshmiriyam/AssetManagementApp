@@ -1,7 +1,7 @@
 # NXTBY Asset Management System - Project Context
 
-> **Last Updated:** February 16, 2026
-> **Version:** 2.1
+> **Last Updated:** February 23, 2026
+> **Version:** 2.2
 > **Status:** Production (Internal Use)
 
 ---
@@ -37,7 +37,7 @@ An internal IT Asset Management System for tracking laptops and other IT equipme
 
 ### Dependencies (requirements.txt)
 ```
-streamlit==1.31.0
+streamlit==1.53.1
 pyairtable==2.2.1        # Legacy - was used before MySQL
 pandas==2.1.4
 plotly==5.18.0
@@ -88,7 +88,8 @@ reportlab==4.1.0
 │  │  ├ constants.py │  ├ errors.py    │  ├ billing_svc.py │   │
 │  │  ├ styles.py    │  ├ data.py      │  ├ audit_svc.py   │   │
 │  │  └ permissions  │  ├ auth.py      │  ├ asset_svc.py   │   │
-│  │                 │  └ navigation   │  └ sla_svc.py     │   │
+│  │                 │  └ navigation   │  ├ sla_svc.py     │   │
+│  │                 │                 │  └ email_svc.py    │   │
 │  └──────────────────────────────────────────────────────┘   │
 └─────────────────────┬───────────────────────────────────────┘
                       │
@@ -97,8 +98,10 @@ reportlab==4.1.0
 │                    MySQL DATABASE                            │
 │                     (Railway)                                │
 │  ┌──────────┬──────────┬──────────┬──────────┬──────────┐  │
-│  │  assets  │  clients │  users   │ activity │assignments│  │
-│  └──────────┴──────────┴──────────┴──────────┴──────────┘  │
+│  │ assets │clients│ users │activity│assign-│ import_ │  │
+│  │        │       │       │  _log  │ ments │mapping_ │  │
+│  │        │       │       │        │       │profiles │  │
+│  └────────┴───────┴───────┴────────┴───────┴─────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -263,8 +266,9 @@ Lower layers never import from higher layers. `views/` uses the `AppContext` dat
 
 ### Other Features
 - [x] QR code generation (single and bulk PDF)
-- [x] Excel import
+- [x] Excel import with column mapping (upload any Excel, auto-suggest mapping, save profiles)
 - [x] Export to Excel on all data pages (Assets, Assignments, Issues, Repairs, Reports, Billing) — formatted with orange headers, auto-width columns
+- [x] SLA email notifications (Gmail SMTP, manual trigger, Admin/Operations only)
 - [x] Session management with token persistence (survives hard refresh)
 - [x] Login/logout with activity logging
 - [x] Pagination navigation on all tables (Assets, Assignments, Issues, Repairs, Clients, Export)
@@ -277,7 +281,9 @@ Lower layers never import from higher layers. `views/` uses the `AppContext` dat
 - [x] Asset history timeline (view all changes to an asset) — `22d467a`
 - [x] Dashboard date range filters — `de2511f`
 - [x] Export to Excel (filtered data) — `de2511f`
-- [ ] Email notifications (SLA alerts)
+- [x] Email notifications (SLA alerts) — `78abb20`
+- [x] Column mapping import (upload any Excel format) — `78abb20`
+- [x] Streamlit upgrade 1.31.0 → 1.53.1 — `78abb20`
 
 ### Medium Priority
 - [ ] Asset photos/attachments
@@ -358,6 +364,16 @@ Lower layers never import from higher layers. `views/` uses the `AppContext` dat
 - created_at (DATETIME)
 ```
 
+### import_mapping_profiles
+```sql
+- id (INT, PK, AUTO_INCREMENT)
+- profile_name (VARCHAR(100), UNIQUE)
+- mapping (JSON)
+- created_by (VARCHAR(50))
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
+```
+
 ---
 
 ## 9. FILE STRUCTURE
@@ -415,7 +431,8 @@ AssetManagementApp/
 │   ├── billing_service.py  # Billing status, metrics, impact calculations
 │   ├── audit_service.py    # Audit trail, activity logging, state changes
 │   ├── asset_service.py    # Asset CRUD, status transitions, RBAC validation
-│   └── sla_service.py      # SLA calculations, role-based filtering
+│   ├── sla_service.py      # SLA calculations, role-based filtering
+│   └── email_service.py    # Gmail SMTP SLA report sender
 │
 ├── database/
 │   ├── db.py             # MySQL operations
@@ -443,6 +460,10 @@ DB_PASSWORD=xxx
 # App Settings
 DATA_SOURCE=mysql
 LOG_DIR=logs
+
+# Email Notifications (Gmail SMTP)
+EMAIL_ADDRESS=your-email@gmail.com
+EMAIL_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
 
 # Legacy (Airtable - no longer used)
 AIRTABLE_API_KEY=xxx
@@ -502,6 +523,7 @@ Local Development
 1. `app.py` is ~230 lines — modular extraction complete (Steps 1-8)
 2. No automated tests
 3. No staging environment
+4. Existing DB functions (pre-column-mapping) lack `finally` blocks for connection cleanup — only affects error paths
 
 ### Resolved Issues (Feb 16, 2026)
 1. ~~Production crash: `width="stretch"` incompatible with Streamlit 1.31.0~~ → Reverted all 53 occurrences back to `use_container_width=True` (`525353a`, `b9b9e38`)
@@ -562,8 +584,40 @@ Local Development
 | Feb 16, 2026 | Production hotfix: revert `width="stretch"` → `use_container_width=True` (53 occurrences) |
 | Feb 16, 2026 | Dashboard date range filters with presets + Period Activity section |
 | Feb 16, 2026 | Export to Excel on all data pages (generic utility + formatted headers) |
+| Feb 23, 2026 | Streamlit upgrade 1.31.0 → 1.53.1 (eliminates version mismatch) |
+| Feb 23, 2026 | SLA email notifications (Gmail SMTP, manual trigger, HTML reports) |
+| Feb 23, 2026 | Column mapping import (upload any Excel, auto-suggest, saved profiles) |
 
-### Recent Changes (February 16, 2026)
+### Recent Changes (February 23, 2026)
+
+#### Streamlit Upgrade (`78abb20`)
+- Upgraded `requirements.txt` from `streamlit==1.31.0` → `streamlit==1.53.1`
+- Eliminates 22-version gap between local dev and production
+- Resolves `width="stretch"` incompatibility (production now supports modern Streamlit APIs)
+
+#### SLA Email Notifications (`78abb20`)
+- New `services/email_service.py` — Gmail SMTP sender with HTML report builder
+- Manual "Email SLA Report" button on Dashboard (Admin/Operations roles only)
+- HTML email includes: summary bar (Critical/Warning/OK counts), asset table with color-coded badges, SLA thresholds reference
+- Sends to all active Admin + Operations users with email addresses
+- Requires `EMAIL_ADDRESS` and `EMAIL_APP_PASSWORD` env vars (Gmail App Password)
+- Button shows disabled state if email not configured
+- Added `EMAIL_CONFIG` to `config/constants.py`, `get_sla_breached_assets()` to `services/sla_service.py`
+
+#### Column Mapping Import (`78abb20`)
+- Redesigned Import tab with 5-step flow: Upload → Map Columns → Preview → Validate → Import
+- Upload any Excel file (vendor invoices, procurement sheets, old IT registers)
+- Auto-suggest column mapping using keyword matching (18 app fields with multiple keywords each)
+- Save/load/delete reusable mapping profiles (stored in `import_mapping_profiles` MySQL table)
+- Serial Number highlighted as required field
+- Duplicate field protection (auto-suggest tracks used fields, apply_column_mapping deduplicates)
+- Connection pool leak fix: all 3 new DB functions use `try/finally` for guaranteed `conn.close()`
+- Backward compatible: template upload auto-maps all columns correctly
+- New functions: `detect_columns()`, `auto_suggest_mapping()`, `apply_column_mapping()` in `database/excel_utils.py`
+- New DB functions: `get_import_profiles()`, `save_import_profile()`, `delete_import_profile()` in `database/db.py`
+- Files changed: `database/db.py`, `database/excel_utils.py`, `views/import_export.py`, `config/constants.py`, `services/sla_service.py`, `views/dashboard.py`, `services/email_service.py` (new), `requirements.txt`
+
+### Previous Changes (February 16, 2026)
 
 #### Production Hotfix: `width="stretch"` Incompatibility (`525353a`, `b9b9e38`)
 - **Problem:** P0 fix replaced `use_container_width=True` → `width="stretch"` across 53 calls, but production runs Streamlit 1.31.0 which doesn't support `width` param on any widget

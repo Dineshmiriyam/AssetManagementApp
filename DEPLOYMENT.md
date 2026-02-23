@@ -1,6 +1,6 @@
 # Deployment Guide
 
-> **Last Updated:** February 16, 2026
+> **Last Updated:** February 23, 2026
 
 ---
 
@@ -8,6 +8,7 @@
 
 | Date | Commit | Description |
 |------|--------|-------------|
+| Feb 23, 2026 | `78abb20` | SLA email notifications + Column mapping import + Streamlit 1.53.1 upgrade |
 | Feb 16, 2026 | `de2511f` | Dashboard date range filters + Export to Excel on all data pages |
 | Feb 16, 2026 | `b9b9e38` | **HOTFIX:** Revert all 50 remaining `width="stretch"` → `use_container_width=True` |
 | Feb 16, 2026 | `525353a` | **HOTFIX:** Revert 3 `form_submit_button` `width="stretch"` (production crash) |
@@ -67,7 +68,7 @@ git push origin main
 □ No console errors in browser
 □ Feature works as expected
 □ Other features still work
-□ Widget params compatible with Streamlit 1.31.0 (use_container_width=True, NOT width="stretch")
+□ Widget params use `use_container_width=True` (preferred over `width="stretch"`)
 ```
 
 ---
@@ -144,7 +145,39 @@ If you need to add/change environment variables:
 
 ---
 
-## Today's Changes (February 16, 2026)
+## Today's Changes (February 23, 2026)
+
+### Streamlit Upgrade (`78abb20`)
+- Upgraded `requirements.txt` from `streamlit==1.31.0` → `streamlit==1.53.1`
+- Eliminates 22-version gap between local dev and production
+- Previous `width="stretch"` hotfix no longer necessary (1.53.1 supports modern APIs)
+
+### SLA Email Notifications (`78abb20`)
+- **New file:** `services/email_service.py` — Gmail SMTP sender with HTML report builder
+- Manual "Email SLA Report" button on Dashboard (Admin/Operations roles only)
+- HTML email: dark header, 3-column summary (Critical/Warning/OK), asset table with badges, SLA thresholds footer
+- Sends to all active Admin + Operations users with email addresses
+- Requires `EMAIL_ADDRESS` and `EMAIL_APP_PASSWORD` environment variables on Railway
+- Button disabled with caption if env vars not configured
+- Added `EMAIL_CONFIG` to `config/constants.py`
+- Added `get_sla_breached_assets()` to `services/sla_service.py`
+
+### Column Mapping Import (`78abb20`)
+- **5-step flow:** Upload → Map Columns → Preview → Validate → Import
+- Upload any Excel file (vendor invoices, procurement sheets, old IT registers)
+- Auto-suggest: keyword matching across 18 app fields (case-insensitive, first match wins)
+- Saved profiles: store/load/delete reusable mappings in `import_mapping_profiles` table (auto-created)
+- Serial Number highlighted as required
+- Duplicate protection in both auto-suggest (tracks used fields) and apply_column_mapping (deduplicates)
+- DB functions use `try/finally` for guaranteed connection cleanup
+- New utility functions in `database/excel_utils.py`: `detect_columns()`, `auto_suggest_mapping()`, `apply_column_mapping()`
+- New DB functions in `database/db.py`: `get_import_profiles()`, `save_import_profile()`, `delete_import_profile()`
+
+**Files changed (8):** `requirements.txt`, `config/constants.py`, `services/sla_service.py`, `services/email_service.py` (new), `views/dashboard.py`, `database/db.py`, `database/excel_utils.py`, `views/import_export.py`
+
+---
+
+## Previous Changes (February 16, 2026)
 
 ### Production Hotfix: `width="stretch"` Incompatibility
 **Problem:** P0 fix (`d7ec010`) replaced `use_container_width=True` → `width="stretch"` across 53 widget calls. Production runs Streamlit 1.31.0 (pinned in `requirements.txt`) which does NOT support the `width` parameter on ANY widget. Local dev ran 1.53.1 where it works.
