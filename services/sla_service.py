@@ -59,6 +59,52 @@ def get_sla_counts(assets_df):
     return sla_counts
 
 
+def get_sla_breached_assets(assets_df):
+    """Return detailed list of assets in warning or critical SLA status."""
+    breached = []
+
+    if assets_df.empty or "Current Status" not in assets_df.columns:
+        return breached
+
+    today = date.today()
+
+    for _, asset in assets_df.iterrows():
+        status = asset.get("Current Status", "")
+        if status not in SLA_CONFIG:
+            continue
+
+        status_date = None
+        if "Status Changed Date" in asset and pd.notna(asset.get("Status Changed Date")):
+            try:
+                status_date = datetime.strptime(str(asset["Status Changed Date"])[:10], "%Y-%m-%d").date()
+            except (ValueError, TypeError):
+                pass
+        elif "Returned Date" in asset and pd.notna(asset.get("Returned Date")) and status == "RETURNED_FROM_CLIENT":
+            try:
+                status_date = datetime.strptime(str(asset["Returned Date"])[:10], "%Y-%m-%d").date()
+            except (ValueError, TypeError):
+                pass
+
+        if not status_date:
+            continue
+
+        days = (today - status_date).days
+        sla_level, threshold = calculate_sla_status(status, days)
+
+        if sla_level in ("warning", "critical"):
+            breached.append({
+                "serial": asset.get("Serial Number", "N/A"),
+                "status": status,
+                "days": days,
+                "sla_level": sla_level,
+                "client": asset.get("Current Location", "—"),
+                "threshold": threshold,
+            })
+
+    breached.sort(key=lambda x: (0 if x["sla_level"] == "critical" else 1, -x["days"]))
+    return breached
+
+
 def filter_assets_by_role(assets_df, role):
     """Filter assets based on user role focus states"""
     role_config = USER_ROLES.get(role, USER_ROLES["admin"])

@@ -46,6 +46,14 @@ SLA_CONFIG = {
     "IN_OFFICE_TESTING": {"warning": 2, "critical": 5}
 }
 
+# Email Configuration (Gmail SMTP)
+EMAIL_CONFIG = {
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 587,
+    "timeout": 30,
+    "subject_prefix": "[NXTBY]",
+}
+
 # ============================================
 # PERFORMANCE & PAGINATION CONFIGURATION
 # ============================================

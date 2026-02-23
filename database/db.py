@@ -2,6 +2,7 @@
 MySQL Database Utility Module
 Provides functions for database operations similar to Airtable interface
 """
+import logging
 import mysql.connector
 from mysql.connector import pooling, Error
 import pandas as pd
@@ -1547,6 +1548,16 @@ def setup_database() -> Tuple[bool, str]:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS import_mapping_profiles (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                profile_name VARCHAR(100) NOT NULL UNIQUE,
+                mapping JSON NOT NULL,
+                created_by VARCHAR(50),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             """
         ]
 
@@ -1568,6 +1579,87 @@ def setup_database() -> Tuple[bool, str]:
 
     except Error as e:
         return False, f"Database setup error: {str(e)}"
+
+
+def get_import_profiles() -> List[Dict]:
+    """Return all saved column mapping profiles."""
+    import json as _json
+    conn = DatabaseConnection.get_connection()
+    if not conn:
+        return []
+    try:
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(
+            "SELECT id, profile_name, mapping, created_by, created_at FROM import_mapping_profiles ORDER BY profile_name"
+        )
+        rows = cursor.fetchall()
+        for row in rows:
+            if isinstance(row.get("mapping"), str):
+                try:
+                    row["mapping"] = _json.loads(row["mapping"])
+                except Exception:
+                    row["mapping"] = {}
+        return rows
+    except Error as e:
+        logging.error(f"get_import_profiles error: {e}")
+        return []
+    finally:
+        try:
+            cursor.close()
+        except Exception:
+            pass
+        conn.close()
+
+
+def save_import_profile(profile_name: str, mapping_dict: Dict, created_by: str = "") -> Tuple[bool, Optional[str]]:
+    """Upsert a column mapping profile by name. Returns (success, error_msg)."""
+    import json as _json
+    conn = DatabaseConnection.get_connection()
+    if not conn:
+        return False, "Database connection failed"
+    try:
+        cursor = conn.cursor()
+        mapping_json = _json.dumps(mapping_dict)
+        cursor.execute(
+            """
+            INSERT INTO import_mapping_profiles (profile_name, mapping, created_by)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE mapping = VALUES(mapping), updated_at = CURRENT_TIMESTAMP
+            """,
+            (profile_name.strip(), mapping_json, created_by)
+        )
+        conn.commit()
+        return True, None
+    except Error as e:
+        logging.error(f"save_import_profile error: {e}")
+        return False, str(e)
+    finally:
+        try:
+            cursor.close()
+        except Exception:
+            pass
+        conn.close()
+
+
+def delete_import_profile(profile_id: int) -> bool:
+    """Delete a column mapping profile by id."""
+    conn = DatabaseConnection.get_connection()
+    if not conn:
+        return False
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM import_mapping_profiles WHERE id = %s", (profile_id,))
+        conn.commit()
+        return True
+    except Error as e:
+        logging.error(f"delete_import_profile error: {e}")
+        return False
+    finally:
+        try:
+            cursor.close()
+        except Exception:
+            pass
+        conn.close()
 
 
 def check_tables_exist() -> Tuple[bool, List[str]]:

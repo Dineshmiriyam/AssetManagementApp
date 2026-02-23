@@ -163,6 +163,84 @@ def export_dataframe_to_excel(df: pd.DataFrame, sheet_name: str = "Data") -> Byt
     return output
 
 
+def detect_columns(df: pd.DataFrame) -> List[str]:
+    """Return list of non-empty column names from uploaded DataFrame."""
+    return [str(c).strip() for c in df.columns if str(c).strip()]
+
+
+def auto_suggest_mapping(detected_cols: List[str]) -> Dict[str, str]:
+    """
+    Suggest an app field for each detected column using keyword matching.
+    Returns {detected_col: suggested_app_field or '-- Skip --'}.
+    First keyword match wins; unmatched columns default to '-- Skip --'.
+    """
+    KEYWORD_MAP = {
+        "Serial Number":     ["serial", "sn", "s/n", "asset_id", "device_id", "asset id", "tag"],
+        "Asset Type":        ["asset type", "device type", "type", "category"],
+        "Brand":             ["brand", "make", "manufacturer", "vendor", "oem"],
+        "Model":             ["model", "device name", "product name", "product"],
+        "Specs":             ["specs", "specification", "config", "configuration"],
+        "Processor":         ["processor", "cpu", "chip", "core"],
+        "RAM (GB)":          ["ram", "memory", "mem"],
+        "Storage (GB)":      ["storage gb", "storage size", "storage", "hdd", "ssd", "disk", "capacity"],
+        "Storage Type":      ["storage type", "drive type", "disk type"],
+        "OS Installed":      ["os installed", "operating system", "os", "windows", "macos", "linux"],
+        "Touch Screen":      ["touch screen", "touchscreen", "touch"],
+        "Purchase Date":     ["purchase date", "procurement date", "bought date", "buy date", "date purchased"],
+        "Purchase Price":    ["purchase price", "price", "cost", "amount", "value", "rate"],
+        "Current Status":    ["current status", "status", "condition", "state"],
+        "Current Location":  ["current location", "location", "place", "site", "office", "assigned to"],
+        "Notes":             ["notes", "remarks", "comments", "additional info"],
+        "Office License Key":["office license", "license key", "product key", "office key", "license"],
+        "Device Password":   ["device password", "password", "pwd", "pin"],
+    }
+
+    suggestions = {}
+    used_fields = set()
+    for col in detected_cols:
+        col_lower = col.lower().strip()
+        matched = "-- Skip --"
+        for app_field, keywords in KEYWORD_MAP.items():
+            if app_field in used_fields:
+                continue
+            if any(kw in col_lower for kw in keywords):
+                matched = app_field
+                break
+        suggestions[col] = matched
+        if matched != "-- Skip --":
+            used_fields.add(matched)
+    return suggestions
+
+
+def apply_column_mapping(df: pd.DataFrame, mapping: Dict[str, str]) -> pd.DataFrame:
+    """
+    Rename/select columns based on user mapping.
+    mapping = {'Their Column': 'App Field', 'Other Col': '-- Skip --'}
+    Returns new DataFrame with only mapped (non-skipped) columns, renamed to app field names.
+    """
+    rename_map = {their_col: app_field
+                  for their_col, app_field in mapping.items()
+                  if app_field != "-- Skip --" and their_col in df.columns}
+    if not rename_map:
+        return pd.DataFrame()
+
+    # Check for duplicate app field targets
+    seen = {}
+    for their_col, app_field in rename_map.items():
+        if app_field in seen:
+            # Keep first mapping, skip duplicates
+            rename_map[their_col] = "-- Skip --"
+        else:
+            seen[app_field] = their_col
+
+    # Remove any newly skipped
+    rename_map = {k: v for k, v in rename_map.items() if v != "-- Skip --"}
+    if not rename_map:
+        return pd.DataFrame()
+
+    return df[list(rename_map.keys())].rename(columns=rename_map).copy()
+
+
 def generate_import_template() -> BytesIO:
     """
     Generate a blank Excel template for importing assets.

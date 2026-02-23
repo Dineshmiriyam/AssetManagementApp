@@ -1,5 +1,6 @@
 """Import/Export page — CSV import, export, QR code generation."""
 
+import logging
 from datetime import datetime
 
 import pandas as pd
@@ -35,8 +36,12 @@ def render(ctx: AppContext) -> None:
         generate_import_template,
         validate_import_data,
         import_assets_from_dataframe,
+        detect_columns,
+        auto_suggest_mapping,
+        apply_column_mapping,
         EXCEL_COLUMNS
     )
+    from database.db import get_import_profiles, save_import_profile, delete_import_profile
 
     # Import QR code utilities
     from database.qr_utils import (
@@ -136,7 +141,6 @@ def render(ctx: AppContext) -> None:
 
     # ========== IMPORT SECTION ==========
     with import_section:
-        # Section header (matching other pages)
         st.markdown("""
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #3b82f6;">
             <div style="width: 4px; height: 20px; background: #3b82f6; border-radius: 2px;"></div>
@@ -144,18 +148,17 @@ def render(ctx: AppContext) -> None:
         </div>
         """, unsafe_allow_html=True)
 
-        st.info("Upload an Excel file (.xlsx) to bulk import assets. Download the template first to ensure correct format.")
+        st.info("Upload **any Excel file** — map your columns to app fields, save the mapping as a profile, and reuse it next time.")
 
-        # Step 1: Download Template
+        # Download template button
         st.markdown("""
         <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb;">
-            Step 1: Download Import Template
+            Download Template (Optional)
         </div>
         """, unsafe_allow_html=True)
-        st.caption("The template includes column headers, data validation dropdowns, and a sample row.")
-
-        template_col1, template_col2 = st.columns([1, 3])
-        with template_col1:
+        st.caption("Use our template for the easiest import, or upload your own Excel file below.")
+        tmpl_col1, _ = st.columns([1, 3])
+        with tmpl_col1:
             try:
                 template_buffer = generate_import_template()
                 st.download_button(
@@ -168,170 +171,290 @@ def render(ctx: AppContext) -> None:
             except Exception as e:
                 st.error(f"Failed to generate template: {str(e)}")
 
-        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
-        # Step 2: Upload File
+        # ── Initialize session state ──────────────────────────────────────
+        for key, default in [
+            ("import_raw_df", None),
+            ("import_mapping", {}),
+            ("import_mapping_done", False),
+            ("import_validated", False),
+            ("import_df", None),
+            ("import_errors", []),
+            ("import_warnings", []),
+        ]:
+            if key not in st.session_state:
+                st.session_state[key] = default
+
+        # ── STEP 1: Upload ────────────────────────────────────────────────
         st.markdown("""
         <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb;">
-            Step 2: Upload Filled Template
+            Step 1: Upload Your Excel File
         </div>
         """, unsafe_allow_html=True)
-        st.caption("Fill in the template with your asset data and upload it here.")
+        st.caption("Upload your own Excel file in any format — vendor invoice, procurement sheet, old IT register, etc.")
 
         uploaded_file = st.file_uploader(
-            "Choose Excel file",
-            type=['xlsx'],
-            help="Upload .xlsx file only. Maximum 10MB.",
+            "Choose Excel file (.xlsx)",
+            type=["xlsx"],
+            help="Any Excel file up to 10MB.",
             key="import_file_uploader"
         )
 
-        # Initialize session state for import
-        if 'import_validated' not in st.session_state:
-            st.session_state.import_validated = False
-        if 'import_df' not in st.session_state:
-            st.session_state.import_df = None
-        if 'import_errors' not in st.session_state:
-            st.session_state.import_errors = []
-        if 'import_warnings' not in st.session_state:
-            st.session_state.import_warnings = []
-
         if uploaded_file is not None:
-            # Check file size (10MB limit)
             if uploaded_file.size > 10 * 1024 * 1024:
                 st.error("File too large. Maximum size is 10MB.")
             else:
                 try:
-                    # Read the uploaded file
-                    import_df = pd.read_excel(uploaded_file, sheet_name=0)
+                    raw_df = pd.read_excel(uploaded_file, sheet_name=0)
+                    # Store raw df; reset downstream state if file changed
+                    if st.session_state.import_raw_df is None or list(raw_df.columns) != list(
+                        st.session_state.import_raw_df.columns if st.session_state.import_raw_df is not None else []
+                    ):
+                        st.session_state.import_raw_df = raw_df
+                        st.session_state.import_mapping = {}
+                        st.session_state.import_mapping_done = False
+                        st.session_state.import_validated = False
+                        st.session_state.import_df = None
+                        st.session_state.import_errors = []
+                        st.session_state.import_warnings = []
 
-                    st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+                    detected = detect_columns(raw_df)
+                    st.success(f"Detected **{len(detected)} columns** and **{len(raw_df)} rows** in your file.")
 
-                    st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+                    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
-                    # Step 3: Preview & Validate
+                    # ── STEP 2: Map Columns ───────────────────────────────
                     st.markdown("""
                     <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb;">
-                        Step 3: Preview & Validate
+                        Step 2: Map Your Columns
                     </div>
                     """, unsafe_allow_html=True)
-                    st.caption("Review your data and check for any validation errors.")
+                    st.caption("Match each column in your file to the corresponding app field. Columns set to '-- Skip --' will be ignored.")
 
-                    # Show preview
-                    st.markdown("**Data Preview** (first 10 rows)")
-                    preview_cols = ['Serial Number', 'Asset Type', 'Brand', 'Model', 'Current Status']
-                    available_preview = [c for c in preview_cols if c in import_df.columns]
-                    if available_preview:
-                        st.dataframe(import_df[available_preview].head(10), use_container_width=True)
+                    # Build app field options
+                    app_fields = ["-- Skip --"] + [col["name"] for col in EXCEL_COLUMNS]
+                    required_fields = {"Serial Number"}
+
+                    # Load saved profile
+                    profiles = get_import_profiles()
+                    profile_options = ["-- New Mapping --"] + [p["profile_name"] for p in profiles]
+                    profile_map = {p["profile_name"]: p for p in profiles}
+
+                    prof_col1, prof_col2 = st.columns([3, 1])
+                    with prof_col1:
+                        selected_profile = st.selectbox(
+                            "Load Saved Profile",
+                            options=profile_options,
+                            key="import_profile_select"
+                        )
+                    with prof_col2:
+                        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+                        if selected_profile != "-- New Mapping --":
+                            if st.button("🗑 Delete Profile", key="delete_profile_btn", use_container_width=True):
+                                pid = profile_map[selected_profile]["id"]
+                                if delete_import_profile(pid):
+                                    st.success(f"Profile '{selected_profile}' deleted.")
+                                    st.rerun()
+                                else:
+                                    st.error("Failed to delete profile.")
+
+                    # Determine initial mapping
+                    if selected_profile != "-- New Mapping --" and selected_profile in profile_map:
+                        saved_mapping = profile_map[selected_profile]["mapping"]
                     else:
-                        st.dataframe(import_df.head(10), use_container_width=True)
+                        saved_mapping = auto_suggest_mapping(detected)
 
-                    st.caption(f"Total rows: {len(import_df)}")
+                    # Render mapping rows
+                    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+                    header_c1, header_c2 = st.columns([2, 2])
+                    with header_c1:
+                        st.markdown("**Your Column**")
+                    with header_c2:
+                        st.markdown("**App Field**")
 
-                    # Validate button
-                    if st.button("🔍 Validate Data", use_container_width=True, type="primary"):
-                        with st.spinner("Validating data..."):
-                            is_valid, errors, warnings, valid_df = validate_import_data(import_df)
-                            st.session_state.import_errors = errors
-                            st.session_state.import_warnings = warnings
-                            st.session_state.import_df = valid_df
-                            st.session_state.import_validated = True
+                    current_mapping = {}
+                    for their_col in detected:
+                        col1, col2 = st.columns([2, 2])
+                        with col1:
+                            is_required = saved_mapping.get(their_col) in required_fields
+                            label = f"{'⭐ ' if is_required else ''}{their_col}"
+                            st.markdown(
+                                f"<div style='padding: 8px 0; font-size: 13px; color: #374151;'>{label}</div>",
+                                unsafe_allow_html=True
+                            )
+                        with col2:
+                            default_field = saved_mapping.get(their_col, "-- Skip --")
+                            default_idx = app_fields.index(default_field) if default_field in app_fields else 0
+                            chosen = st.selectbox(
+                                label=their_col,
+                                options=app_fields,
+                                index=default_idx,
+                                key=f"map_{their_col}",
+                                label_visibility="collapsed"
+                            )
+                            current_mapping[their_col] = chosen
+
+                    # Save profile expander
+                    with st.expander("💾 Save as Profile"):
+                        save_col1, save_col2 = st.columns([3, 1])
+                        with save_col1:
+                            new_profile_name = st.text_input(
+                                "Profile name",
+                                placeholder="e.g. Vendor Dell Format",
+                                key="new_profile_name"
+                            )
+                        with save_col2:
+                            st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+                            if st.button("Save", key="save_profile_btn", use_container_width=True):
+                                if new_profile_name.strip():
+                                    ok, err = save_import_profile(
+                                        new_profile_name.strip(),
+                                        current_mapping,
+                                        st.session_state.get("username", "")
+                                    )
+                                    if ok:
+                                        st.success(f"Profile '{new_profile_name}' saved!")
+                                    else:
+                                        st.error(f"Save failed: {err}")
+                                else:
+                                    st.warning("Enter a profile name first.")
+
+                    # Confirm mapping button
+                    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+                    if st.button("✅ Confirm Mapping", key="confirm_mapping_btn", type="primary", use_container_width=True):
+                        if current_mapping.get("-- Skip --") == "Serial Number" or \
+                           "Serial Number" not in current_mapping.values():
+                            st.warning("⭐ Serial Number must be mapped to at least one column to proceed.")
+                        else:
+                            st.session_state.import_mapping = current_mapping
+                            st.session_state.import_mapping_done = True
+                            st.session_state.import_validated = False
+                            st.session_state.import_df = None
                             st.rerun()
 
-                    # Show validation results
-                    if st.session_state.import_validated:
-                        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
-
-                        errors = st.session_state.import_errors
-                        warnings = st.session_state.import_warnings
-                        valid_df = st.session_state.import_df
-
-                        # Validation summary
-                        valid_count = len(valid_df) if valid_df is not None else 0
-                        error_count = len(errors)
-                        warning_count = len(warnings)
-
-                        # Validation Summary using standard metrics
-                        summary_col1, summary_col2, summary_col3 = st.columns(3)
-                        with summary_col1:
-                            st.metric("✅ Valid Records", valid_count)
-                        with summary_col2:
-                            st.metric("❌ Errors", error_count)
-                        with summary_col3:
-                            st.metric("⚠️ Warnings", warning_count)
-
-                        # Show errors if any
-                        if errors:
-                            with st.expander("❌ Errors (must fix)", expanded=True):
-                                for err in errors[:20]:  # Show first 20 errors
-                                    row_info = f"Row {err['row']}" if err.get('row') else ""
-                                    field_info = f"[{err['field']}]" if err.get('field') else ""
-                                    st.markdown(f"• {row_info} {field_info}: {err.get('message', 'Unknown error')}")
-                                if len(errors) > 20:
-                                    st.caption(f"...and {len(errors) - 20} more errors")
-
-                        # Show warnings if any
-                        if warnings:
-                            with st.expander("⚠️ Warnings", expanded=False):
-                                for warn in warnings[:20]:
-                                    row_info = f"Row {warn['row']}" if warn.get('row') else ""
-                                    field_info = f"[{warn['field']}]" if warn.get('field') else ""
-                                    st.markdown(f"• {row_info} {field_info}: {warn.get('message', 'Warning')}")
-                                if len(warnings) > 20:
-                                    st.caption(f"...and {len(warnings) - 20} more warnings")
-
-                        # Step 4: Import
-                        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+                    # ── STEP 3: Preview Mapped Data ───────────────────────
+                    if st.session_state.import_mapping_done:
+                        st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
                         st.markdown("""
                         <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb;">
-                            Step 4: Import Assets
+                            Step 3: Preview Mapped Data
                         </div>
                         """, unsafe_allow_html=True)
-                        st.caption("Click the button below to import valid records into the database.")
 
-                        if valid_count > 0:
-                            if st.button(f"📥 Import {valid_count} Assets", use_container_width=True, type="primary"):
-                                with st.spinner(f"Importing {valid_count} assets..."):
-                                    result = import_assets_from_dataframe(valid_df)
+                        mapped_df = apply_column_mapping(
+                            st.session_state.import_raw_df,
+                            st.session_state.import_mapping
+                        )
+                        mapped_count = sum(1 for v in st.session_state.import_mapping.values() if v != "-- Skip --")
+                        skipped_count = sum(1 for v in st.session_state.import_mapping.values() if v == "-- Skip --")
+                        st.caption(f"{mapped_count} columns mapped, {skipped_count} skipped — {len(mapped_df)} rows ready.")
 
-                                    if result['success'] > 0:
+                        preview_cols = ["Serial Number", "Asset Type", "Brand", "Model", "Current Status"]
+                        available_preview = [c for c in preview_cols if c in mapped_df.columns]
+                        st.dataframe(
+                            mapped_df[available_preview].head(5) if available_preview else mapped_df.head(5),
+                            use_container_width=True
+                        )
+
+                        st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+
+                        # ── STEP 4: Validate ──────────────────────────────
+                        st.markdown("""
+                        <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb;">
+                            Step 4: Validate Data
+                        </div>
+                        """, unsafe_allow_html=True)
+                        st.caption("Check your data for errors before importing.")
+
+                        if st.button("🔍 Validate Data", key="validate_btn", use_container_width=True, type="primary"):
+                            with st.spinner("Validating..."):
+                                is_valid, errors, warnings, valid_df = validate_import_data(mapped_df)
+                                st.session_state.import_errors = errors
+                                st.session_state.import_warnings = warnings
+                                st.session_state.import_df = valid_df
+                                st.session_state.import_validated = True
+                                st.rerun()
+
+                        if st.session_state.import_validated:
+                            errors = st.session_state.import_errors
+                            warnings = st.session_state.import_warnings
+                            valid_df = st.session_state.import_df
+                            valid_count = len(valid_df) if valid_df is not None else 0
+
+                            v_col1, v_col2, v_col3 = st.columns(3)
+                            with v_col1:
+                                st.metric("✅ Valid Records", valid_count)
+                            with v_col2:
+                                st.metric("❌ Errors", len(errors))
+                            with v_col3:
+                                st.metric("⚠️ Warnings", len(warnings))
+
+                            if errors:
+                                with st.expander("❌ Errors (must fix)", expanded=True):
+                                    for err in errors[:20]:
+                                        row_info = f"Row {err['row']}" if err.get("row") else ""
+                                        field_info = f"[{err['field']}]" if err.get("field") else ""
+                                        st.markdown(f"• {row_info} {field_info}: {err.get('message', 'Unknown error')}")
+                                    if len(errors) > 20:
+                                        st.caption(f"...and {len(errors) - 20} more errors")
+
+                            if warnings:
+                                with st.expander("⚠️ Warnings", expanded=False):
+                                    for warn in warnings[:20]:
+                                        row_info = f"Row {warn['row']}" if warn.get("row") else ""
+                                        field_info = f"[{warn['field']}]" if warn.get("field") else ""
+                                        st.markdown(f"• {row_info} {field_info}: {warn.get('message', 'Warning')}")
+                                    if len(warnings) > 20:
+                                        st.caption(f"...and {len(warnings) - 20} more warnings")
+
+                            # ── STEP 5: Import ────────────────────────────
+                            st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+                            st.markdown("""
+                            <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb;">
+                                Step 5: Import Assets
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                            if valid_count > 0:
+                                if st.button(f"📥 Import {valid_count} Assets", key="import_btn", use_container_width=True, type="primary"):
+                                    with st.spinner(f"Importing {valid_count} assets..."):
+                                        result = import_assets_from_dataframe(valid_df)
+
+                                    if result["success"] > 0:
                                         st.success(f"✅ Successfully imported {result['success']} assets!")
-
-                                        # Log activity
                                         log_activity_event(
                                             action_type="BULK_IMPORT",
                                             category="data_management",
                                             user_role=st.session_state.user_role,
-                                            description=f"Imported {result['success']} assets from Excel",
+                                            description=f"Imported {result['success']} assets from Excel (column mapping)",
                                             success=True
                                         )
-
-                                        # CRITICAL: Mark data as stale to refresh dashboard
                                         st.session_state.data_stale = True
 
-                                    if result['failed'] > 0:
+                                    if result["failed"] > 0:
                                         st.warning(f"⚠️ {result['failed']} assets failed to import.")
-                                        if result.get('errors'):
+                                        if result.get("errors"):
                                             with st.expander("View import errors"):
-                                                for err in result['errors'][:10]:
-                                                    serial = err.get('serial', 'Unknown')
-                                                    error_msg = err.get('error', 'Unknown error')
-                                                    st.write(f"• {serial}: {error_msg}")
+                                                for err in result["errors"][:10]:
+                                                    st.write(f"• {err.get('serial', 'Unknown')}: {err.get('error', 'Unknown error')}")
 
-                                    # Reset import state
-                                    st.session_state.import_validated = False
-                                    st.session_state.import_df = None
-                                    st.session_state.import_errors = []
-                                    st.session_state.import_warnings = []
-                        else:
-                            st.warning("No valid records to import. Please fix the errors above and re-validate.")
+                                    # Reset state
+                                    for key in ["import_raw_df", "import_mapping", "import_mapping_done",
+                                                "import_validated", "import_df", "import_errors", "import_warnings"]:
+                                        st.session_state[key] = None if key in ("import_raw_df", "import_df") else \
+                                                                 {} if key == "import_mapping" else \
+                                                                 [] if key in ("import_errors", "import_warnings") else False
+                            else:
+                                st.warning("No valid records to import. Fix errors above, adjust mapping, and re-validate.")
 
-                        # Reset validation button
-                        if st.button("🔄 Reset & Upload New File"):
-                            st.session_state.import_validated = False
-                            st.session_state.import_df = None
-                            st.session_state.import_errors = []
-                            st.session_state.import_warnings = []
-                            st.rerun()
+                            if st.button("🔄 Reset & Start Over", key="reset_btn", use_container_width=True):
+                                for key in ["import_raw_df", "import_mapping", "import_mapping_done",
+                                            "import_validated", "import_df", "import_errors", "import_warnings"]:
+                                    st.session_state[key] = None if key in ("import_raw_df", "import_df") else \
+                                                             {} if key == "import_mapping" else \
+                                                             [] if key in ("import_errors", "import_warnings") else False
+                                st.rerun()
 
                 except Exception as e:
                     st.error(f"Failed to read file: {str(e)}")

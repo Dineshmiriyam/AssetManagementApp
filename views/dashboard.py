@@ -14,7 +14,7 @@ from config.constants import (
 from config.permissions import (
     can_create_asset, can_perform_lifecycle_action, can_manage_repairs,
 )
-from services.sla_service import calculate_sla_status, get_sla_counts
+from services.sla_service import calculate_sla_status, get_sla_counts, get_sla_breached_assets
 from services.billing_service import (
     calculate_billing_metrics, get_billing_impact,
 )
@@ -916,6 +916,26 @@ def render(ctx: AppContext) -> None:
                     st.session_state.current_page = "Assets"
                     st.session_state.sla_filter = "ok"
                     safe_rerun()
+
+            # Email SLA Report button (after SLA cards)
+            import os
+            email_configured = bool(os.getenv("EMAIL_ADDRESS", "").strip())
+            email_col1, email_col2 = st.columns([3, 1])
+            with email_col2:
+                if email_configured:
+                    if st.button("📧 Email SLA Report", key="email_sla_report", use_container_width=True):
+                        from services.email_service import send_sla_report
+                        with st.spinner("Sending SLA report..."):
+                            success, fail, error = send_sla_report(ctx.assets_df)
+                        if error:
+                            st.error(f"Email failed: {error}")
+                        elif fail > 0:
+                            st.warning(f"Sent to {success} users, failed for {fail}")
+                        else:
+                            st.success(f"SLA report sent to {success} user(s)")
+                else:
+                    st.button("📧 Email SLA Report", key="email_sla_report_disabled", disabled=True, use_container_width=True)
+                    st.caption("Set EMAIL_ADDRESS in env to enable")
 
         if role_config["show_billing"]:
             # Billing Insights for Finance and Admin - using centralized calculations
