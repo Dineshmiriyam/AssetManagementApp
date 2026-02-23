@@ -23,6 +23,8 @@ try:
         create_assignment as mysql_create_assignment,
         create_issue as mysql_create_issue,
         create_repair as mysql_create_repair,
+        update_repair as mysql_update_repair,
+        get_active_repair_by_asset_id as mysql_get_active_repair,
         log_state_change_db,
     )
     _DB_AVAILABLE = True
@@ -209,6 +211,23 @@ def create_repair_record(data, user_role="admin", skip_rbac=False):
             clear_cache(["repairs", "assets"])  # Targeted invalidation
             return True
         return False
+
+
+def update_repair_record(repair_id, data, user_role="admin"):
+    """Update an existing repair record (cost, notes, return date, status)."""
+    if DATA_SOURCE == "mysql" and MYSQL_AVAILABLE:
+        success, error = mysql_update_repair(int(repair_id), data)
+        if success:
+            clear_cache(["repairs"])
+        return success, error
+    return False, "MySQL not available"
+
+
+def get_active_repair_for_asset(asset_id):
+    """Get active (WITH_VENDOR) repair record for an asset."""
+    if DATA_SOURCE == "mysql" and MYSQL_AVAILABLE:
+        return mysql_get_active_repair(int(asset_id))
+    return None
 
 
 def create_assignment_record(data, user_role="admin", skip_rbac=False):

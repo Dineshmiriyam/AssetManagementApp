@@ -642,6 +642,7 @@ def get_all_repairs() -> pd.DataFrame:
             r.vendor_name as `Vendor Name`,
             r.repair_description as `Repair Description`,
             r.repair_cost as `Repair Cost`,
+            r.repair_notes as `Repair Notes`,
             r.status as `Status`,
             a.serial_number as `Serial Number`
         FROM repairs r
@@ -682,8 +683,8 @@ def create_repair(data: Dict) -> Tuple[bool, Optional[int], Optional[str]]:
 
         query = """
         INSERT INTO repairs
-            (asset_id, repair_reference, sent_date, expected_return, repair_description, status)
-        VALUES (%s, %s, %s, %s, %s, %s)
+            (asset_id, repair_reference, sent_date, expected_return, repair_description, status, vendor_name, repair_cost)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """
         cursor.execute(query, (
             asset_id,
@@ -691,7 +692,9 @@ def create_repair(data: Dict) -> Tuple[bool, Optional[int], Optional[str]]:
             data.get("Sent Date"),
             data.get("Expected Return"),
             data.get("Repair Description"),
-            data.get("Status", "WITH_VENDOR")
+            data.get("Status", "WITH_VENDOR"),
+            data.get("Vendor Name"),
+            data.get("Repair Cost")
         ))
 
         conn.commit()
@@ -702,6 +705,76 @@ def create_repair(data: Dict) -> Tuple[bool, Optional[int], Optional[str]]:
     except Error as e:
         return False, None, str(e)
     finally:
+        conn.close()
+
+
+def update_repair(repair_id: int, data: Dict) -> Tuple[bool, Optional[str]]:
+    """Update repair record fields."""
+    conn = DatabaseConnection.get_connection()
+    if not conn:
+        return False, "Database connection failed"
+
+    try:
+        cursor = conn.cursor()
+        repair_id = int(repair_id) if repair_id is not None else None
+
+        field_mapping = {
+            "Repair Cost": "repair_cost",
+            "Repair Notes": "repair_notes",
+            "Return Date": "return_date",
+            "Vendor Name": "vendor_name",
+            "Status": "status",
+            "Repair Description": "repair_description",
+        }
+
+        set_clauses = []
+        values = []
+        for display_field, db_column in field_mapping.items():
+            if display_field in data:
+                set_clauses.append(f"{db_column} = %s")
+                values.append(data[display_field])
+
+        if not set_clauses:
+            return False, "No data to update"
+
+        values.append(repair_id)
+        query = f"UPDATE repairs SET {', '.join(set_clauses)}, updated_at = NOW() WHERE id = %s"
+        cursor.execute(query, values)
+        conn.commit()
+        return True, None
+    except Error as e:
+        logging.error(f"update_repair error: {e}")
+        return False, str(e)
+    finally:
+        try:
+            cursor.close()
+        except Exception:
+            pass
+        conn.close()
+
+
+def get_active_repair_by_asset_id(asset_id: int) -> Optional[Dict]:
+    """Find the active WITH_VENDOR repair record for an asset."""
+    conn = DatabaseConnection.get_connection()
+    if not conn:
+        return None
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+        asset_id = int(asset_id) if asset_id is not None else None
+        cursor.execute(
+            "SELECT id, repair_reference, vendor_name, repair_cost FROM repairs WHERE asset_id = %s AND status = 'WITH_VENDOR' ORDER BY created_at DESC LIMIT 1",
+            (asset_id,)
+        )
+        result = cursor.fetchone()
+        return result
+    except Error:
+        return None
+    finally:
+        try:
+            cursor.close()
+        except Exception:
+            pass
         conn.close()
 
 

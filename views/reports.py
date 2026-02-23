@@ -225,9 +225,54 @@ def render(ctx: AppContext) -> None:
                             """, unsafe_allow_html=True)
 
                 with col2:
-                    if "Is Replaced" in ctx.repairs_df.columns:
-                        replaced = ctx.repairs_df["Is Replaced"].sum()
-                        st.metric("Replaced Units", int(replaced) if pd.notna(replaced) else 0)
+                    if "Repair Cost" in ctx.repairs_df.columns:
+                        costs = pd.to_numeric(ctx.repairs_df["Repair Cost"], errors='coerce')
+                        total_cost = costs.sum()
+                        avg_cost = costs[costs > 0].mean() if (costs > 0).any() else 0
+                        max_cost = costs.max()
+                        repairs_with_cost = int(costs[costs > 0].count())
+
+                        st.metric("Total Repair Cost", f"₹{total_cost:,.0f}" if pd.notna(total_cost) else "₹0")
+                        st.metric("Avg Cost / Repair", f"₹{avg_cost:,.0f}" if pd.notna(avg_cost) else "₹0")
+
+                        st.markdown("""
+                        <div style="font-size: 14px; font-weight: 600; color: #374151; margin: 12px 0 8px 0; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb;">
+                            Cost Breakdown
+                        </div>
+                        """, unsafe_allow_html=True)
+                        st.markdown(f"""
+                        <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #f3f4f6;">
+                            <span style="color: #374151;">Highest Repair</span>
+                            <span style="font-weight: 600; color: #1f2937;">₹{max_cost:,.0f}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #f3f4f6;">
+                            <span style="color: #374151;">Repairs with Cost</span>
+                            <span style="font-weight: 600; color: #1f2937;">{repairs_with_cost} of {len(ctx.repairs_df)}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.info("No cost data available yet")
+
+                # Vendor breakdown
+                if "Vendor Name" in ctx.repairs_df.columns:
+                    vendor_data = ctx.repairs_df[ctx.repairs_df["Vendor Name"].notna() & (ctx.repairs_df["Vendor Name"] != "")]
+                    if not vendor_data.empty:
+                        st.markdown("""
+                        <div style="font-size: 14px; font-weight: 600; color: #374151; margin: 16px 0 8px 0; padding-bottom: 4px; border-bottom: 1px solid #e5e7eb;">
+                            By Vendor
+                        </div>
+                        """, unsafe_allow_html=True)
+                        vendor_summary = vendor_data.groupby("Vendor Name").agg(
+                            Repairs=("Vendor Name", "count"),
+                        ).reset_index()
+                        if "Repair Cost" in vendor_data.columns:
+                            cost_agg = vendor_data.groupby("Vendor Name")["Repair Cost"].sum().reset_index()
+                            cost_agg.columns = ["Vendor Name", "Total Cost"]
+                            vendor_summary = vendor_summary.merge(cost_agg, on="Vendor Name", how="left")
+                            vendor_summary["Total Cost"] = vendor_summary["Total Cost"].apply(
+                                lambda x: f"₹{x:,.0f}" if pd.notna(x) and x > 0 else "-"
+                            )
+                        st.dataframe(vendor_summary, hide_index=True, use_container_width=True)
 
                 # Export repair data
                 st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)

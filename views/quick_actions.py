@@ -10,6 +10,7 @@ from config.permissions import check_page_access, render_access_denied
 from services.asset_service import (
     update_asset_status, create_assignment_record,
     create_repair_record, create_issue_record,
+    update_repair_record, get_active_repair_for_asset,
 )
 from services.audit_service import log_activity_event
 from components.confirmation import (
@@ -402,7 +403,9 @@ def render(ctx: AppContext) -> None:
                                 "Sent Date": date.today().isoformat(),
                                 "Expected Return": (date.today() + timedelta(days=extra.get('expected_days', 14))).isoformat(),
                                 "Repair Description": f"{extra.get('repair_issue', 'Issue')}: {extra.get('repair_desc', '')}",
-                                "Status": "WITH_VENDOR"
+                                "Status": "WITH_VENDOR",
+                                "Vendor Name": extra.get('vendor_name') or None,
+                                "Repair Cost": extra.get('estimated_cost') or None
                             }
                             create_repair_record(repair_data, user_role=st.session_state.get('user_role', 'admin'))
 
@@ -421,7 +424,9 @@ def render(ctx: AppContext) -> None:
                                     "repair_issue": extra.get('repair_issue'),
                                     "repair_description": extra.get('repair_desc'),
                                     "expected_days": extra.get('expected_days', 14),
-                                    "sent_date": date.today().isoformat()
+                                    "sent_date": date.today().isoformat(),
+                                    "vendor_name": extra.get('vendor_name'),
+                                    "estimated_cost": extra.get('estimated_cost')
                                 }
                             )
 
@@ -456,7 +461,14 @@ def render(ctx: AppContext) -> None:
                         repair_issue = st.selectbox("Issue Type", ISSUE_CATEGORIES, key="repair_issue")
 
                     repair_desc = st.text_area("Repair Description", key="repair_desc")
-                    expected_days = st.number_input("Expected Repair Days", min_value=1, max_value=90, value=14)
+
+                    vcol1, vcol2, vcol3 = st.columns(3)
+                    with vcol1:
+                        vendor_name = st.text_input("Vendor Name", key="vendor_name", placeholder="e.g., Dell Service Center")
+                    with vcol2:
+                        estimated_cost = st.number_input("Estimated Cost (₹)", min_value=0, value=0, key="estimated_cost")
+                    with vcol3:
+                        expected_days = st.number_input("Expected Repair Days", min_value=1, max_value=90, value=14)
 
                     if st.button("Send to Vendor", type="primary"):
                         if selected_repair:
@@ -474,7 +486,9 @@ def render(ctx: AppContext) -> None:
                                 extra_data={
                                     "repair_issue": repair_issue,
                                     "repair_desc": repair_desc,
-                                    "expected_days": expected_days
+                                    "expected_days": expected_days,
+                                    "vendor_name": vendor_name,
+                                    "estimated_cost": estimated_cost
                                 },
                                 asset_info={
                                     "brand": asset_row.get('Brand', 'N/A'),
@@ -518,6 +532,23 @@ def render(ctx: AppContext) -> None:
                             if new_status == "IN_STOCK_WORKING":
                                 current_reuse = extra.get('current_reuse', 0)
                                 mysql_update_asset(int(record_id), {"Reuse Count": int(current_reuse) + 1})
+
+                            # Persist repair cost, notes, return date to repair record
+                            active_repair = get_active_repair_for_asset(record_id)
+                            if active_repair:
+                                repair_update = {
+                                    "Return Date": date.today().isoformat(),
+                                    "Status": "COMPLETED",
+                                }
+                                if extra.get('repair_cost'):
+                                    repair_update["Repair Cost"] = extra['repair_cost']
+                                if extra.get('repair_notes'):
+                                    repair_update["Repair Notes"] = extra['repair_notes']
+                                update_repair_record(
+                                    active_repair['id'],
+                                    repair_update,
+                                    user_role=st.session_state.get('user_role', 'admin')
+                                )
 
                             clear_action_confirmation()
                             safe_rerun()

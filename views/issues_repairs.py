@@ -168,8 +168,15 @@ def render(ctx: AppContext) -> None:
             """, unsafe_allow_html=True)
 
             if not ctx.repairs_df.empty:
-                display_cols = ["Repair Reference", "Sent Date", "Received Date", "Status", "Repair Description"]
+                display_cols = ["Repair Reference", "Serial Number", "Vendor Name", "Sent Date", "Return Date", "Status", "Repair Cost", "Repair Description"]
                 available_cols = [c for c in display_cols if c in ctx.repairs_df.columns]
+
+                # Format cost column for display
+                repairs_display = ctx.repairs_df.copy()
+                if "Repair Cost" in repairs_display.columns:
+                    repairs_display["Repair Cost"] = repairs_display["Repair Cost"].apply(
+                        lambda x: f"₹{x:,.0f}" if pd.notna(x) and x > 0 else "-"
+                    )
 
                 # Results count
                 st.markdown(f"""
@@ -180,7 +187,7 @@ def render(ctx: AppContext) -> None:
                 </div>
                 """, unsafe_allow_html=True)
                 # Apply pagination
-                paginated_repairs = paginate_dataframe(ctx.repairs_df, "repairs_table", show_controls=True)
+                paginated_repairs = paginate_dataframe(repairs_display, "repairs_table", show_controls=True)
                 st.dataframe(paginated_repairs[available_cols], hide_index=True)
                 render_page_navigation("repairs_table")
 
