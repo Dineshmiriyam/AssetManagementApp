@@ -8,6 +8,7 @@
 
 | Date | Commit | Description |
 |------|--------|-------------|
+| Feb 23, 2026 | `cd377fb` | Repair cost tracking — vendor, cost, notes through full code path |
 | Feb 23, 2026 | `78abb20` | SLA email notifications + Column mapping import + Streamlit 1.53.1 upgrade |
 | Feb 16, 2026 | `de2511f` | Dashboard date range filters + Export to Excel on all data pages |
 | Feb 16, 2026 | `b9b9e38` | **HOTFIX:** Revert all 50 remaining `width="stretch"` → `use_container_width=True` |
@@ -146,6 +147,16 @@ If you need to add/change environment variables:
 ---
 
 ## Today's Changes (February 23, 2026)
+
+### Repair Cost Tracking (`cd377fb`)
+- **5 files changed:** `database/db.py`, `services/asset_service.py`, `views/quick_actions.py`, `views/issues_repairs.py`, `views/reports.py`
+- **database/db.py:** Expanded `create_repair()` to INSERT `vendor_name` + `repair_cost`; added `update_repair()` with dynamic SET clause and `try/finally`; added `get_active_repair_by_asset_id()` to find active WITH_VENDOR repair; expanded `get_all_repairs()` SELECT with `repair_notes`
+- **services/asset_service.py:** Added `update_repair_record()` and `get_active_repair_for_asset()` service wrappers with RBAC and cache invalidation
+- **views/quick_actions.py:** Send to Vendor form now captures Vendor Name + Estimated Cost (3-column layout); Complete Repair now persists cost, notes, return date, status=COMPLETED to repair record
+- **views/issues_repairs.py:** Repairs table expanded from 5 to 8 columns (Repair Reference, Serial Number, Vendor Name, Sent Date, Return Date, Status, Repair Cost, Repair Description); cost formatted as ₹X,XXX; fixed column name bug ("Received Date" → "Return Date")
+- **views/reports.py:** Repair Analysis tab now shows Total Repair Cost, Avg Cost/Repair, Highest Repair, Repairs with Cost count, and Vendor Breakdown table (grouped by vendor with repair count + total cost)
+- **DB migration required:** `ALTER TABLE repairs ADD COLUMN repair_notes TEXT AFTER repair_cost` and `ALTER TABLE repairs ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER status`
+- **No new dependencies or env vars**
 
 ### Streamlit Upgrade (`78abb20`)
 - Upgraded `requirements.txt` from `streamlit==1.31.0` → `streamlit==1.53.1`

@@ -1,7 +1,7 @@
 # NXTBY Asset Management System - Project Context
 
 > **Last Updated:** February 23, 2026
-> **Version:** 2.2
+> **Version:** 2.3
 > **Status:** Production (Internal Use)
 
 ---
@@ -228,8 +228,8 @@ Lower layers never import from higher layers. `views/` uses the `AppContext` dat
 ### Quick Actions
 - [x] Assign asset to client
 - [x] Receive return from client
-- [x] Send to vendor for repair
-- [x] Complete repair
+- [x] Send to vendor for repair (with vendor name + estimated cost)
+- [x] Complete repair (persists cost, notes, return date to repair record)
 - [x] Add new asset
 
 ### Clients Page
@@ -286,9 +286,9 @@ Lower layers never import from higher layers. `views/` uses the `AppContext` dat
 - [x] Streamlit upgrade 1.31.0 → 1.53.1 — `78abb20`
 
 ### Medium Priority
+- [x] Repair cost tracking — `cd377fb`
 - [ ] Asset photos/attachments
 - [ ] Client contact management
-- [ ] Repair cost tracking
 - [ ] Custom reports
 
 ### Low Priority
@@ -350,6 +350,23 @@ Lower layers never import from higher layers. `views/` uses the `AppContext` dat
 - returned_date (DATE)
 - status (VARCHAR)
 - notes (TEXT)
+```
+
+### repairs
+```sql
+- id (INT, PK)
+- asset_id (INT, FK)
+- repair_reference (VARCHAR)
+- sent_date (DATE)
+- return_date (DATE)
+- expected_return (DATE)
+- vendor_name (VARCHAR)
+- repair_description (TEXT)
+- repair_cost (DECIMAL)
+- repair_notes (TEXT)
+- status (VARCHAR) -- WITH_VENDOR, COMPLETED
+- updated_at (TIMESTAMP)
+- created_at (TIMESTAMP)
 ```
 
 ### activity_log
@@ -587,8 +604,20 @@ Local Development
 | Feb 23, 2026 | Streamlit upgrade 1.31.0 → 1.53.1 (eliminates version mismatch) |
 | Feb 23, 2026 | SLA email notifications (Gmail SMTP, manual trigger, HTML reports) |
 | Feb 23, 2026 | Column mapping import (upload any Excel, auto-suggest, saved profiles) |
+| Feb 23, 2026 | Repair cost tracking — vendor, cost, notes wired through full code path |
 
 ### Recent Changes (February 23, 2026)
+
+#### Repair Cost Tracking (`cd377fb`)
+- **Problem:** Repairs table had `vendor_name`, `repair_cost`, `repair_notes`, `return_date` columns in MySQL but they were never populated. The Complete Repair form collected cost but silently discarded it (no `update_repair()` function existed). Send to Vendor didn't capture vendor name or estimated cost. Reports had no cost analytics.
+- **Solution:** Wired existing schema columns into the full code path across 5 files:
+  - `database/db.py`: Expanded `create_repair()` INSERT with `vendor_name` + `repair_cost`, added `update_repair()` (dynamic SET clause), added `get_active_repair_by_asset_id()`, expanded `get_all_repairs()` SELECT with `repair_notes`
+  - `services/asset_service.py`: Added `update_repair_record()` and `get_active_repair_for_asset()` service wrappers with cache invalidation
+  - `views/quick_actions.py`: Send to Vendor form now has Vendor Name + Estimated Cost fields; Complete Repair now persists cost, notes, return date, status=COMPLETED to repair record via `update_repair_record()`
+  - `views/issues_repairs.py`: Repairs table expanded to 8 columns (added Serial Number, Vendor Name, Return Date, Repair Cost); cost formatted as ₹X,XXX; fixed "Received Date" → "Return Date" bug
+  - `views/reports.py`: Repair Analysis tab now shows Total Repair Cost, Avg Cost/Repair, Highest Repair, Repairs with Cost count, and Vendor Breakdown table
+- **DB migration:** `ALTER TABLE repairs ADD COLUMN repair_notes TEXT` and `ADD COLUMN updated_at TIMESTAMP` (applied to both local and production)
+- **No new dependencies or env vars**
 
 #### Streamlit Upgrade (`78abb20`)
 - Upgraded `requirements.txt` from `streamlit==1.31.0` → `streamlit==1.53.1`
