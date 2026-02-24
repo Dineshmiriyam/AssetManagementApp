@@ -1859,6 +1859,7 @@ def get_dashboard_css():
         min-height: auto !important;
     }
 
+
     /* ===== CONFIRMATION MODAL STYLES ===== */
     .confirm-modal {
         background: #ffffff;

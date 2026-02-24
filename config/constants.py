@@ -199,6 +199,10 @@ CRITICAL_ACTIONS = {
     "STATUS_CHANGE": {"severity": "medium", "billing_impact": True},
     "ACCESS_DENIED": {"severity": "critical", "billing_impact": False},
     "ASSIGNMENT_CREATED": {"severity": "high", "billing_impact": True},
+    "CLIENT_CREATED": {"severity": "low", "billing_impact": False},
+    "CLIENT_UPDATED": {"severity": "low", "billing_impact": False},
+    "CONTACT_ADDED": {"severity": "low", "billing_impact": False},
+    "CONTACT_DELETED": {"severity": "low", "billing_impact": False},
 }
 
 # ============================================

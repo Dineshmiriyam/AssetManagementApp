@@ -367,8 +367,8 @@ def update_asset(asset_id: int, data: Dict) -> Tuple[bool, Optional[str]]:
 # CLIENT FUNCTIONS
 # ============================================
 
-def get_all_clients() -> pd.DataFrame:
-    """Fetch all clients from database"""
+def get_all_clients(include_inactive: bool = False) -> pd.DataFrame:
+    """Fetch all clients from database with primary contact info"""
     conn = DatabaseConnection.get_connection()
     if not conn:
         return pd.DataFrame()
@@ -376,22 +376,26 @@ def get_all_clients() -> pd.DataFrame:
     try:
         query = """
         SELECT
-            id as _id,
-            client_name as `Client Name`,
-            contact_person as `Contact Person`,
-            email as `Email`,
-            phone as `Phone`,
-            address as `Address`,
-            city as `City`,
-            state as `State`,
-            billing_rate as `Billing Rate`,
-            status as `Status`,
-            created_at,
-            updated_at
-        FROM clients
-        WHERE status = 'ACTIVE'
-        ORDER BY client_name
+            c.id as _id,
+            c.client_name as `Client Name`,
+            c.client_type as `Client Type`,
+            c.address as `Address`,
+            c.city as `City`,
+            c.state as `State`,
+            c.billing_rate as `Billing Rate`,
+            c.status as `Status`,
+            CASE WHEN c.status = 'ACTIVE' THEN 1 ELSE 0 END as `Is Active`,
+            pc.contact_name as `Contact Person`,
+            pc.email as `Email`,
+            pc.phone as `Phone`,
+            c.created_at,
+            c.updated_at
+        FROM clients c
+        LEFT JOIN client_contacts pc ON pc.client_id = c.id AND pc.is_primary = TRUE
         """
+        if not include_inactive:
+            query += " WHERE c.status = 'ACTIVE'"
+        query += " ORDER BY c.client_name"
         df = _query_to_df(query, conn)
         return df
     except Error as e:
@@ -410,9 +414,13 @@ def create_client(data: Dict) -> Tuple[bool, Optional[int], Optional[str]]:
     try:
         cursor = conn.cursor()
 
+        # Map Is Active checkbox to status column
+        is_active = data.get("Is Active", True)
+        status = "ACTIVE" if is_active else "INACTIVE"
+
         query = """
-        INSERT INTO clients (client_name, contact_person, email, phone, address, city, state, billing_rate)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO clients (client_name, contact_person, email, phone, address, city, state, billing_rate, client_type, status)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         cursor.execute(query, (
             data.get("Client Name"),
@@ -422,7 +430,9 @@ def create_client(data: Dict) -> Tuple[bool, Optional[int], Optional[str]]:
             data.get("Address"),
             data.get("City"),
             data.get("State"),
-            data.get("Billing Rate", 0)
+            data.get("Billing Rate", 0),
+            data.get("Client Type", "Rental"),
+            status
         ))
 
         conn.commit()
@@ -432,6 +442,201 @@ def create_client(data: Dict) -> Tuple[bool, Optional[int], Optional[str]]:
         return True, client_id, None
     except Error as e:
         return False, None, str(e)
+    finally:
+        conn.close()
+
+
+def get_client_by_id(client_id: int) -> Optional[Dict]:
+    """Return a single client as a dict for edit form pre-population."""
+    conn = DatabaseConnection.get_connection()
+    if not conn:
+        return None
+    try:
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT id, client_name, contact_person, email, phone,
+                   address, city, state, billing_rate, client_type, status
+            FROM clients WHERE id = %s
+        """, (int(client_id),))
+        result = cursor.fetchone()
+        cursor.close()
+        return result
+    except Error:
+        return None
+    finally:
+        conn.close()
+
+
+def update_client(client_id: int, data: Dict) -> Tuple[bool, Optional[str]]:
+    """Update client fields using dynamic SET clause."""
+    conn = DatabaseConnection.get_connection()
+    if not conn:
+        return False, "Database connection failed"
+    try:
+        cursor = conn.cursor()
+        field_mapping = {
+            "Client Name": "client_name",
+            "Contact Person": "contact_person",
+            "Email": "email",
+            "Phone": "phone",
+            "Address": "address",
+            "City": "city",
+            "State": "state",
+            "Billing Rate": "billing_rate",
+            "Client Type": "client_type",
+            "Status": "status",
+        }
+        set_clauses = []
+        values = []
+        for display_field, db_column in field_mapping.items():
+            if display_field in data:
+                set_clauses.append(f"{db_column} = %s")
+                values.append(data[display_field])
+        if not set_clauses:
+            return False, "No data to update"
+        values.append(int(client_id))
+        query = f"UPDATE clients SET {', '.join(set_clauses)}, updated_at = NOW() WHERE id = %s"
+        cursor.execute(query, values)
+        conn.commit()
+        cursor.close()
+        return True, None
+    except Error as e:
+        logging.error(f"update_client error: {e}")
+        return False, str(e)
+    finally:
+        conn.close()
+
+
+def get_client_contacts(client_id: int) -> pd.DataFrame:
+    """Return all contacts for a client."""
+    conn = DatabaseConnection.get_connection()
+    if not conn:
+        return pd.DataFrame()
+    try:
+        query = """
+        SELECT
+            id as _id,
+            contact_name as `Contact Name`,
+            contact_role as `Role`,
+            email as `Email`,
+            phone as `Phone`,
+            is_primary as `Is Primary`,
+            notes as `Notes`,
+            created_at
+        FROM client_contacts
+        WHERE client_id = %s
+        ORDER BY is_primary DESC, contact_name
+        """
+        df = _query_to_df(query, conn, params=(int(client_id),))
+        return df
+    except Error as e:
+        logging.error(f"get_client_contacts error: {e}")
+        return pd.DataFrame()
+    finally:
+        conn.close()
+
+
+def create_contact(data: Dict) -> Tuple[bool, Optional[int], Optional[str]]:
+    """Insert a new contact into client_contacts."""
+    conn = DatabaseConnection.get_connection()
+    if not conn:
+        return False, None, "Database connection failed"
+    try:
+        cursor = conn.cursor()
+
+        # If marking as primary, un-flag existing primary for this client
+        if data.get("is_primary"):
+            cursor.execute(
+                "UPDATE client_contacts SET is_primary = FALSE WHERE client_id = %s AND is_primary = TRUE",
+                (int(data["client_id"]),)
+            )
+
+        query = """
+        INSERT INTO client_contacts (client_id, contact_name, contact_role, email, phone, is_primary, notes)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(query, (
+            int(data["client_id"]),
+            data.get("contact_name"),
+            data.get("contact_role", "Primary"),
+            data.get("email"),
+            data.get("phone"),
+            bool(data.get("is_primary", False)),
+            data.get("notes"),
+        ))
+        conn.commit()
+        contact_id = cursor.lastrowid
+        cursor.close()
+        return True, contact_id, None
+    except Error as e:
+        logging.error(f"create_contact error: {e}")
+        return False, None, str(e)
+    finally:
+        conn.close()
+
+
+def update_contact(contact_id: int, data: Dict) -> Tuple[bool, Optional[str]]:
+    """Update a contact record."""
+    conn = DatabaseConnection.get_connection()
+    if not conn:
+        return False, "Database connection failed"
+    try:
+        cursor = conn.cursor()
+
+        # If marking as primary, un-flag existing primary for same client
+        if data.get("is_primary"):
+            # Get the client_id for this contact
+            cursor.execute("SELECT client_id FROM client_contacts WHERE id = %s", (int(contact_id),))
+            row = cursor.fetchone()
+            if row:
+                cursor.execute(
+                    "UPDATE client_contacts SET is_primary = FALSE WHERE client_id = %s AND is_primary = TRUE AND id != %s",
+                    (row[0], int(contact_id))
+                )
+
+        field_mapping = {
+            "contact_name": "contact_name",
+            "contact_role": "contact_role",
+            "email": "email",
+            "phone": "phone",
+            "is_primary": "is_primary",
+            "notes": "notes",
+        }
+        set_clauses = []
+        values = []
+        for key, col in field_mapping.items():
+            if key in data:
+                set_clauses.append(f"{col} = %s")
+                values.append(data[key])
+        if not set_clauses:
+            return False, "No data to update"
+        values.append(int(contact_id))
+        query = f"UPDATE client_contacts SET {', '.join(set_clauses)}, updated_at = NOW() WHERE id = %s"
+        cursor.execute(query, values)
+        conn.commit()
+        cursor.close()
+        return True, None
+    except Error as e:
+        logging.error(f"update_contact error: {e}")
+        return False, str(e)
+    finally:
+        conn.close()
+
+
+def delete_contact(contact_id: int) -> Tuple[bool, Optional[str]]:
+    """Delete a contact row."""
+    conn = DatabaseConnection.get_connection()
+    if not conn:
+        return False, "Database connection failed"
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM client_contacts WHERE id = %s", (int(contact_id),))
+        conn.commit()
+        cursor.close()
+        return True, None
+    except Error as e:
+        logging.error(f"delete_contact error: {e}")
+        return False, str(e)
     finally:
         conn.close()
 
@@ -1474,6 +1679,7 @@ def setup_database() -> Tuple[bool, str]:
                 city VARCHAR(100),
                 state VARCHAR(100),
                 billing_rate DECIMAL(10,2) DEFAULT 0,
+                client_type VARCHAR(20) DEFAULT 'Rental',
                 status VARCHAR(20) DEFAULT 'ACTIVE',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -1630,6 +1836,22 @@ def setup_database() -> Tuple[bool, str]:
                 created_by VARCHAR(50),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS client_contacts (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                client_id INT NOT NULL,
+                contact_name VARCHAR(100) NOT NULL,
+                contact_role VARCHAR(30) DEFAULT 'Primary',
+                email VARCHAR(100),
+                phone VARCHAR(20),
+                is_primary BOOLEAN DEFAULT FALSE,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_client (client_id),
+                FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             """
         ]
