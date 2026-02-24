@@ -1,7 +1,7 @@
 # NXTBY Asset Management System - Project Context
 
-> **Last Updated:** February 23, 2026
-> **Version:** 2.3
+> **Last Updated:** February 24, 2026
+> **Version:** 2.4
 > **Status:** Production (Internal Use)
 
 ---
@@ -233,9 +233,13 @@ Lower layers never import from higher layers. `views/` uses the `AppContext` dat
 - [x] Add new asset
 
 ### Clients Page
-- [x] View all clients
-- [x] Add new client
-- [x] View client's assigned assets
+- [x] View all clients with search, type filter, status filter
+- [x] Add new client (MySQL — fixed Airtable API bug)
+- [x] Edit client inline (from View Clients tab)
+- [x] View client's assigned assets count
+- [x] Multiple contacts per client (Primary, Billing, Technical, Escalation)
+- [x] Manage Contacts tab — add, edit, delete contacts with roles
+- [x] Primary contact auto-displayed in client cards via DB JOIN
 
 ### Assignments Page
 - [x] View all assignments
@@ -287,8 +291,8 @@ Lower layers never import from higher layers. `views/` uses the `AppContext` dat
 
 ### Medium Priority
 - [x] Repair cost tracking — `cd377fb`
+- [x] Client contact management — `de25f79`
 - [ ] Asset photos/attachments
-- [ ] Client contact management
 - [ ] Custom reports
 
 ### Low Priority
@@ -381,6 +385,20 @@ Lower layers never import from higher layers. `views/` uses the `AppContext` dat
 - created_at (DATETIME)
 ```
 
+### client_contacts
+```sql
+- id (INT, PK)
+- client_id (INT, FK → clients.id, CASCADE)
+- contact_name (VARCHAR)
+- contact_role (VARCHAR) -- Primary, Billing, Technical, Escalation
+- email (VARCHAR)
+- phone (VARCHAR)
+- is_primary (BOOLEAN)
+- notes (TEXT)
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
+```
+
 ### import_mapping_profiles
 ```sql
 - id (INT, PK, AUTO_INCREMENT)
@@ -449,7 +467,8 @@ AssetManagementApp/
 │   ├── audit_service.py    # Audit trail, activity logging, state changes
 │   ├── asset_service.py    # Asset CRUD, status transitions, RBAC validation
 │   ├── sla_service.py      # SLA calculations, role-based filtering
-│   └── email_service.py    # Gmail SMTP SLA report sender
+│   ├── email_service.py    # Gmail SMTP SLA report sender
+│   └── client_service.py   # Client + contact CRUD, audit logging
 │
 ├── database/
 │   ├── db.py             # MySQL operations
@@ -605,6 +624,19 @@ Local Development
 | Feb 23, 2026 | SLA email notifications (Gmail SMTP, manual trigger, HTML reports) |
 | Feb 23, 2026 | Column mapping import (upload any Excel, auto-suggest, saved profiles) |
 | Feb 23, 2026 | Repair cost tracking — vendor, cost, notes wired through full code path |
+| Feb 24, 2026 | Client contact management — multiple contacts, edit client, fix Airtable bug |
+
+### Recent Changes (February 24, 2026)
+
+#### Client Contact Management (`de25f79`)
+- **Problem:** Clients page had critical bugs: Add Client used Airtable API (never reached MySQL), Client Type and Is Active fields collected but never stored, no way to edit clients after creation, only one contact per client
+- **Solution:** Complete redesign across 5 files:
+  - `database/db.py`: Added `client_type` column to clients table, created `client_contacts` table (FK to clients, CASCADE delete), updated `get_all_clients()` with LEFT JOIN for primary contact, updated `create_client()` with client_type/status, added 6 new functions: `get_client_by_id()`, `update_client()`, `get_client_contacts()`, `create_contact()`, `update_contact()`, `delete_contact()`
+  - `services/client_service.py`: New service layer with `create_client_record()` (auto-creates primary contact), `update_client_record()`, `add_contact()`, `update_contact_record()`, `remove_contact()` — all with audit logging and cache invalidation
+  - `views/clients.py`: Fixed Airtable API bug → MySQL, 3 tabs: View Clients (search + type/status filters + inline edit), Add Client (with client_type, billing_rate, city, state), Manage Contacts (select client, add/edit/delete contacts with roles)
+  - `config/constants.py`: Added CLIENT_CREATED, CLIENT_UPDATED, CONTACT_ADDED, CONTACT_DELETED audit actions
+- **DB migration:** `ALTER TABLE clients ADD COLUMN client_type VARCHAR(20)` and `CREATE TABLE client_contacts`
+- **Button consistency:** Edit buttons use `type="primary"` (orange per app theme), Delete/Clear use default (green) — no custom CSS overrides
 
 ### Recent Changes (February 23, 2026)
 

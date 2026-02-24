@@ -1,6 +1,6 @@
 # Deployment Guide
 
-> **Last Updated:** February 23, 2026
+> **Last Updated:** February 24, 2026
 
 ---
 
@@ -8,6 +8,7 @@
 
 | Date | Commit | Description |
 |------|--------|-------------|
+| Feb 24, 2026 | `de25f79` | Client contact management — multiple contacts, edit client, fix Airtable bug |
 | Feb 23, 2026 | `cd377fb` | Repair cost tracking — vendor, cost, notes through full code path |
 | Feb 23, 2026 | `78abb20` | SLA email notifications + Column mapping import + Streamlit 1.53.1 upgrade |
 | Feb 16, 2026 | `de2511f` | Dashboard date range filters + Export to Excel on all data pages |
@@ -146,7 +147,22 @@ If you need to add/change environment variables:
 
 ---
 
-## Today's Changes (February 23, 2026)
+## Today's Changes (February 24, 2026)
+
+### Client Contact Management (`de25f79`)
+- **5 files changed:** `database/db.py`, `services/client_service.py` (new), `views/clients.py`, `config/constants.py`, `config/styles.py`
+- **Critical bug fix:** Add Client form was calling Airtable API (`table.create()`) instead of MySQL `create_client()` — new clients never reached the database
+- **database/db.py:** Added `client_type` column to clients schema, created `client_contacts` table with FK to clients (CASCADE), updated `get_all_clients()` with LEFT JOIN for primary contact info, updated `create_client()` to persist client_type and status, added 6 new functions: `get_client_by_id()`, `update_client()`, `get_client_contacts()`, `create_contact()`, `update_contact()`, `delete_contact()`
+- **services/client_service.py:** New service layer — `create_client_record()` auto-creates primary contact entry, `update_client_record()`, `add_contact()` (auto-unflags existing primary), `update_contact_record()`, `remove_contact()` — all with audit logging via `log_activity_event()` and `clear_cache(["clients"])`
+- **views/clients.py:** Redesigned from 142 → 393 lines with 3 tabs: View Clients (search + type/status filters + inline edit form), Add Client (all fields including client_type, billing_rate), Manage Contacts (select client, contacts table, add/edit/delete with roles: Primary/Billing/Technical/Escalation)
+- **config/constants.py:** Added 4 audit action types: CLIENT_CREATED, CLIENT_UPDATED, CONTACT_ADDED, CONTACT_DELETED
+- **DB migration required:** `ALTER TABLE clients ADD COLUMN client_type VARCHAR(20) DEFAULT 'Rental' AFTER billing_rate` and full `CREATE TABLE client_contacts` (see schema.sql)
+- **Data migration:** Existing `contact_person/email/phone` from clients table auto-migrated to `client_contacts` as primary contacts via `create_client_record()` on new entries
+- **No new dependencies or env vars**
+
+---
+
+## Previous Changes (February 23, 2026)
 
 ### Repair Cost Tracking (`cd377fb`)
 - **5 files changed:** `database/db.py`, `services/asset_service.py`, `views/quick_actions.py`, `views/issues_repairs.py`, `views/reports.py`
