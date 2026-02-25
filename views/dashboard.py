@@ -98,21 +98,6 @@ def render(ctx: AppContext) -> None:
         # Get current role
         current_role = st.session_state.user_role
 
-        # Last Updated timestamp with Refresh button
-        last_updated = datetime.now().strftime("%I:%M %p")
-        update_col1, update_col2 = st.columns([6, 1])
-        with update_col1:
-            st.markdown(f"""
-            <div class="last-updated">
-                <span class="dot"></span>
-                <span>Last updated: {last_updated}</span>
-            </div>
-            """, unsafe_allow_html=True)
-        with update_col2:
-            if st.button("Refresh", key="refresh_data"):
-                clear_cache()
-                safe_rerun()
-
         # ============================================
         # DATE RANGE FILTER
         # ============================================

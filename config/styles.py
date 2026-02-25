@@ -2182,31 +2182,6 @@ def get_dashboard_css():
         100% { background-position: -200% 0; }
     }
 
-    /* Last Updated Badge */
-    .last-updated {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.4rem 0.75rem;
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        color: #64748b;
-    }
-
-    .last-updated .dot {
-        width: 6px;
-        height: 6px;
-        background: #22c55e;
-        border-radius: 50%;
-        animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
-    }
 
     /* Empty State */
     .empty-state {
