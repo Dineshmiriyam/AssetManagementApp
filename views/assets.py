@@ -718,7 +718,7 @@ def render(ctx: AppContext) -> None:
                             """, unsafe_allow_html=True)
 
                             # Quick action buttons
-                            qa_action_col1, qa_action_col2, qa_action_col3 = st.columns(3)
+                            qa_action_col1, qa_action_col2 = st.columns(2)
 
                             with qa_action_col1:
                                 qa_new_status = st.selectbox(
@@ -746,12 +746,6 @@ def render(ctx: AppContext) -> None:
                                             safe_rerun()
                                         else:
                                             st.error(f"Failed: {error_msg}")
-
-                            with qa_action_col3:
-                                st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                                if st.button("📋 View Full History", key="qa_view_history", use_container_width=True):
-                                    st.session_state.asset_search_serial = selected_qa_serial
-                                    safe_rerun()
             else:
                 st.info("No assets available.")
 
