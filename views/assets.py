@@ -387,13 +387,6 @@ def render(ctx: AppContext) -> None:
                 <span style="font-size: 14px; color: #374151; font-weight: 500;">Showing</span>
                 <span style="{count_style}">{len(filtered_df)}</span>
                 <span style="font-size: 14px; color: #6b7280;">of {len(ctx.assets_df)} assets</span>
-                <span style="margin-left: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
-                    <span style="font-size: 11px; color: #4CAF50; font-weight: 600; padding: 2px 8px; background: #4CAF5020; border-radius: 4px;">In Stock</span>
-                    <span style="font-size: 11px; color: #FF6B35; font-weight: 600; padding: 2px 8px; background: #FF6B3520; border-radius: 4px;">With Client</span>
-                    <span style="font-size: 11px; color: #2196F3; font-weight: 600; padding: 2px 8px; background: #2196F320; border-radius: 4px;">Returned</span>
-                    <span style="font-size: 11px; color: #9C27B0; font-weight: 600; padding: 2px 8px; background: #9C27B020; border-radius: 4px;">Testing</span>
-                    <span style="font-size: 11px; color: #FF9800; font-weight: 600; padding: 2px 8px; background: #FF980020; border-radius: 4px;">Repair</span>
-                </span>
             </div>
             """, unsafe_allow_html=True)
         with results_col2:
